@@ -24,11 +24,7 @@ $out | foreach {
     elseif ($Type -eq "$DSMA.WarningRecord")     {Write-Warning (InfoMsg $_)}
     elseif ($Type -eq "$DSMA.InformationRecord") {Write-Host    (GetMsg $_)}
    #elseif ($Type -eq "$DSMA.ErrorRecord")       {$_ | Out-Default}  # <-- need to find a way to show Errors in Stream #2
+    elseif ($Type -eq "$DSMA.ErrorRecord")       {$PSCmdlet.WriteError((Get-ErrorRecord $_))}
     else                                         {Write-Output $_}
 }
-
 }
-
-
-# only 2 options: Write-Error $ErrorRecord, $PSCmdlet.WriteError([System.Management.Automation.ErrorRecord])
-# so parse the remote deserialized error record and create a local one

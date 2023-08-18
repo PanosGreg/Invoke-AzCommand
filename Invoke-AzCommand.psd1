@@ -27,7 +27,8 @@ FileList          = 'readme.md',
                     'Private\Expand-XmlString.ps1',
                     'Private\ConvertBase64.ps1',
                     'Private\Start-RunspaceJob.ps1',
-                    'Private\Get-CompressedOutput.ps1'
+                    'Private\Get-CompressedOutput.ps1',
+                    'Private\Get-ErrorRecord.ps1'
 PrivateData = @{
     PSData = @{
         Tags         = 'PowerShell', 'Azure', 'Remoting'
