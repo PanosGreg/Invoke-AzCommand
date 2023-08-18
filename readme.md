@@ -13,3 +13,4 @@ The following features are out of scope, at least for now:
 
 - no logging in the remote machine
 - no encryption
+- I don't enrich the output objects (for ex. add the computername)
