@@ -5,7 +5,8 @@ param (
     [Parameter(Mandatory)]
     [scriptblock]$ScriptBlock,
 
-    [object[]]$ArgumentList = [string]::Empty,
+    [AllowEmptyCollection()]
+    [object[]]$ArgumentList,
 
     [int]$Timeout = 600 # <-- remote execution timeout period, default is 10 minutes (600 seconds)
 )
@@ -40,6 +41,11 @@ $RemoteBlock = {
     # compress the output
     Write-Output (Get-CompressedOutput $Result)
 } #remote block
+
+# check if there's any user arguments
+if ($ArgumentList.Count -eq 0) {
+    $ArgumentList = '__No parameter was given for the remote command__'
+}
 
 # encode all input with Base64 encoding (the user's scriptblock,helper functions and any arguments given)
 $Funcs  = Get-Item Function:\Compress-XmlString,Function:\Start-RunspaceJob,Function:\Get-CompressedOutput

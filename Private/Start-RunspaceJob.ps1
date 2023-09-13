@@ -10,9 +10,15 @@ param (
 # create a new powershell using the default configuration for a runspace
 $cmd = [PowerShell]::Create()
 
+# check if there are any arguments given
+$InternalMsg = '__No parameter was given for the remote command__'
+$NoArguments = $ArgumentList.Count -eq 1 -and $ArgumentList.Item(0) -eq $InternalMsg
+
 # add the scriptblock and any arguments
 [void]$cmd.AddScript($Scriptblock.ToString())
-$ArgumentList | foreach {[void]$cmd.AddArgument($_)}
+if (-not $NoArguments) {
+    $ArgumentList | foreach {[void]$cmd.AddArgument($_)}
+}
 
 # get all streams as part of the normal output, not separately
 $cmd.Commands.Commands.MergeMyResults('All','Output')
@@ -35,7 +41,9 @@ if ($Timeout) {
         $cmd.Stop()
     }
 }
-else {$cmd.EndInvoke($Async)}  # <-- this will wait as long as needed for the script to finish
+
+try   {$cmd.EndInvoke($Async)}   # <-- this will wait as long as needed for the script to finish
+catch {$_.Exception.InnerException.ErrorRecord}
 
 $cmd.Dispose()
 Remove-Variable cmd -Verbose:$false

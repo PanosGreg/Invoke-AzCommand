@@ -35,7 +35,7 @@ param (
     [Parameter(Mandatory,Position=1,ParameterSetName = 'Scriptfile')]
     [string]$ScriptFile,
 
-    [object[]]$ArgumentList = [string]::Empty,
+    [object[]]$ArgumentList,
 
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
     [int]$DeliveryTimeout  = 666,   # <-- time needed to run the Invoke-AzVMRunCommand, default 10+ minutes (ExecTime plus 1+ minute for AzVMRunCommand to reach the Azure VM)
@@ -55,7 +55,7 @@ $ScriptList    = $ScriptsToLoad | foreach {Join-Path $ModuleFolder "\Private\$_.
 
 # Progress Bar with ForEach Parallel, related variables and setup
 $ProgressParams  = [System.Collections.Concurrent.ConcurrentDictionary[int,hashtable]]::new()
-$MaxVMNameLength = ($VM | Measure-Object -Property 'Name' -Maximum).Maximum.Length
+$MaxVMNameLength = ($VM.Name | Measure-Object -Property Length -Maximum).Maximum
 $ProgressIDNum   = 0
 $VMListWithID    = $VM | foreach {
     $ProgressIDNum++
