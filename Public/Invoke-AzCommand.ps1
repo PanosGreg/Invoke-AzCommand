@@ -113,6 +113,8 @@ while ($Job.State -eq 'Running') {
 
 # show the results
 $out = $Job | Receive-Job -Verbose -AutoRemoveJob -Wait
-$out | foreach {Receive-RemoteOutput -InputString $_.Output -FromVM $_.VMName | where {$_}}
+$out | foreach {
+    Receive-RemoteOutput -InputString $_.Output -FromVM $_.VMName | where {$_.psobject}
+}
 
 }
