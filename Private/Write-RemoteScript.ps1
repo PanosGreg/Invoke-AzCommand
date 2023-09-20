@@ -1,16 +1,13 @@
 function Write-RemoteScript {
 [OutputType([string])]
-#[CmdletBinding(DefaultParameterSetName='__AllParameterSets')]
 [CmdletBinding()]
 param (
     [Parameter(Mandatory)]
     [scriptblock]$ScriptBlock,
 
-    #[Parameter(ParameterSetName = 'Arguments')]
     [AllowEmptyCollection()]
     [object[]]$ArgumentList,
 
-    #[Parameter(ParameterSetName = 'Parameters')]
     [AllowNull()]
     [hashtable]$ParameterList,
 
@@ -59,12 +56,10 @@ $RemoteBlock = {
 } #remote block
 
 # check if there's any user arguments
-#if ($PSCmdlet.ParameterSetName -eq 'Parameters') {
 if ($ParameterList.Keys.Count -gt 0) {
     $InputType = 'WithNames'
     $UserArgs = @{ParameterList = $ParameterList}
 }
-#elseif ($PSCmdlet.ParameterSetName -eq 'Arguments') {
 elseif ($ArgumentList.Count -gt 0) {
     $InputType = 'NoNames'
     $UserArgs = @{ArgumentList = $ArgumentList}
