@@ -26,7 +26,7 @@ param (
     [ValidateScript({
         $Chk = $_ | foreach {$_.GetType().Name -match 'PSVirtualMachine(List|ListStatus)?$'}
         $Chk -notcontains $false
-    })]    
+    })]
     $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
 
     [Parameter(Mandatory,Position=1,ParameterSetName = 'Scriptblock')]
@@ -35,7 +35,13 @@ param (
     [Parameter(Mandatory,Position=1,ParameterSetName = 'Scriptfile')]
     [string]$ScriptFile,
 
+    [Parameter(Position=2,ParameterSetName = 'Scriptblock')]
+    [Parameter(Position=2,ParameterSetName = 'Scriptfile')]
     [object[]]$ArgumentList,
+
+    [Parameter(Position=2,ParameterSetName = 'Scriptblock')]
+    [Parameter(Position=2,ParameterSetName = 'Scriptfile')]
+    [hashtable]$ParameterList,
 
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
     [int]$DeliveryTimeout  = 666,   # <-- time needed to run the Invoke-AzVMRunCommand, default 10+ minutes (ExecTime plus 1+ minute for AzVMRunCommand to reach the Azure VM)
@@ -43,12 +49,16 @@ param (
 )
 
 # get the user's script and our functions that we'll use inside the foreach parallel
-if ($ScriptFile) {
+if ($PSCmdlet.ParameterSetName -eq 'Scriptfile') {
     try   {$ScriptText  = Get-Content $ScriptFile -Raw -ErrorAction Stop  # <-- this checks if the file is accessible
            $ScriptBlock = [scriptblock]::Create($ScriptText)}             # <-- this checks if it's a PowerShell script
     catch {throw $_}
 }
-$RemoteScript  = Write-RemoteScript -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList -Timeout $ExecutionTimeout
+if     ($ArgumentList.Count -ge 1)       {$UserArgs = @{ArgumentList  = $ArgumentList}}
+elseif ($ParameterList.Keys.Count -ge 1) {$UserArgs = @{ParameterList = $ParameterList}}
+else                                     {$UserArgs = $null}
+
+$RemoteScript  = Write-RemoteScript -ScriptBlock $ScriptBlock -Timeout $ExecutionTimeout @UserArgs 
 $ModuleFolder  = $MyInvocation.MyCommand.Module.ModuleBase
 $ScriptsToLoad = 'Invoke-RemoteScript','Initialize-AzModule','Receive-RemoteOutput','Expand-XmlString'
 $ScriptList    = $ScriptsToLoad | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}

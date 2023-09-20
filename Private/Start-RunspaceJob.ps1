@@ -3,21 +3,26 @@ function Start-RunspaceJob {
 param (
     [Parameter(Mandatory)]
     [scriptblock]$Scriptblock,
+
     [object[]]$ArgumentList,
+
+    [hashtable]$ParameterList,
+
     [int]$Timeout
 )
 
 # create a new powershell using the default configuration for a runspace
 $cmd = [PowerShell]::Create()
 
-# check if there are any arguments given
-$InternalMsg = '__No parameter was given for the remote command__'
-$NoArguments = $ArgumentList.Count -eq 1 -and $ArgumentList.Item(0) -eq $InternalMsg
-
-# add the scriptblock and any arguments
+# add the scriptblock
 [void]$cmd.AddScript($Scriptblock.ToString())
-if (-not $NoArguments) {
+
+# add any user arguments (either Args OR Params, NOT both)
+if ($ArgumentList.Count -gt 0) {
     $ArgumentList | foreach {[void]$cmd.AddArgument($_)}
+}
+elseif ($ParameterList.Keys.Count -gt 0) {
+    $ParameterList.GetEnumerator() | foreach {[void]$cmd.AddParameter($_.Key,$_.Value)}
 }
 
 # get all streams as part of the normal output, not separately

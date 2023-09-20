@@ -65,6 +65,8 @@ Foreach($Import in $PSFunctions) {
 
 
 # Finally do anything else you might need for the module to work
+# Note: powershell classes must be defined inside the .psm1 and not on a separate file unfortunately
+#       unlike c# classes where you can have anywhere and use them via add-type
 
 ## NOTE: the exported public command Invoke-AzCommand does NOT need the
 #        Azure modules, BUT the foreach parallel threads that it opens
