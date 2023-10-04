@@ -20,7 +20,7 @@ function Invoke-AzCommand {
     Invoke-AzCommand $All $file
     # we run a script file instead of a scriptblock on the remote VM
 #>
-[CmdletBinding(DefaultParameterSetName = 'Scriptblock')]
+[CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (
     [Parameter(Mandatory,Position=0)]
     [ValidateScript({
@@ -29,18 +29,22 @@ param (
     })]
     $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
 
-    [Parameter(Mandatory,Position=1,ParameterSetName = 'Scriptblock')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'ScriptBlock')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'BlockAndArgs')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'BlockAndParams')]
     [scriptblock]$ScriptBlock,
 
-    [Parameter(Mandatory,Position=1,ParameterSetName = 'Scriptfile')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'ScriptFile')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'FileAndArgs')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'FileAndParams')]
     [string]$ScriptFile,
 
-    [Parameter(Position=2,ParameterSetName = 'Scriptblock')]
-    [Parameter(Position=2,ParameterSetName = 'Scriptfile')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'BlockAndArgs')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'FileAndArgs')]
     [object[]]$ArgumentList,
 
-    [Parameter(Position=2,ParameterSetName = 'Scriptblock')]
-    [Parameter(Position=2,ParameterSetName = 'Scriptfile')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'BlockAndParams')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'FileAndParams')]
     [hashtable]$ParameterList,
 
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
@@ -49,16 +53,20 @@ param (
 )
 
 # get the user's script and our functions that we'll use inside the foreach parallel
-if ($PSCmdlet.ParameterSetName -eq 'Scriptfile') {
+$ParamSetName = $PSCmdlet.ParameterSetName
+if ($ParamSetName -like '*File*') {
     try   {$ScriptText  = Get-Content $ScriptFile -Raw -ErrorAction Stop  # <-- this checks if the file is accessible
            $ScriptBlock = [scriptblock]::Create($ScriptText)}             # <-- this checks if it's a PowerShell script
     catch {throw $_}
 }
-if     ($ArgumentList.Count -ge 1)       {$UserArgs = @{ArgumentList  = $ArgumentList}}
-elseif ($ParameterList.Keys.Count -ge 1) {$UserArgs = @{ParameterList = $ParameterList}}
-else                                     {$UserArgs = $null}
+$RemoteParams = @{
+    Scriptblock = $ScriptBlock
+    Timeout     = $ExecutionTimeout
+}
+if     ($ParamSetName -like '*Args')   {$RemoteParams.ArgumentList  = $ArgumentList}
+elseif ($ParamSetName -like '*Params') {$RemoteParams.ParameterList = $ParameterList}
 
-$RemoteScript  = Write-RemoteScript -ScriptBlock $ScriptBlock -Timeout $ExecutionTimeout @UserArgs 
+$RemoteScript  = Write-RemoteScript @RemoteParams
 $ModuleFolder  = $MyInvocation.MyCommand.Module.ModuleBase
 $ScriptsToLoad = 'Invoke-RemoteScript','Initialize-AzModule','Receive-RemoteOutput','Expand-XmlString'
 $ScriptList    = $ScriptsToLoad | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}

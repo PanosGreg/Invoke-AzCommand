@@ -21,7 +21,7 @@ while ($out.Length -gt $LimitBytes) {
     $limit = $limit - 2000
     if ($Text.Length -gt $limit) {
         $text = $text.Substring(0,$limit)
-        $out = Compress-XmlString $text
+        $out  = Compress-XmlString $text
     }
     if ($limit -le 2000) {break}  # <-- emergency exit if stuck in the loop for whatever reason
 }

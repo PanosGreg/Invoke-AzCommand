@@ -1,13 +1,17 @@
 function Write-RemoteScript {
 [OutputType([string])]
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Scriptblock')]
 param (
-    [Parameter(Mandatory)]
-    [scriptblock]$ScriptBlock,
+    [Parameter(Mandatory,Position=0,ParameterSetName='Scriptblock')]
+    [Parameter(Mandatory,Position=0,ParameterSetName='BlockAndArgs')]
+    [Parameter(Mandatory,Position=0,ParameterSetName='BlockAndParams')]
+    [scriptblock]$Scriptblock,
 
+    [Parameter(Mandatory,Position=1,ParameterSetName='BlockAndArgs')]
     [AllowEmptyCollection()]
     [object[]]$ArgumentList,
 
+    [Parameter(Mandatory,Position=1,ParameterSetName='BlockAndParams')]
     [AllowNull()]
     [hashtable]$ParameterList,
 
@@ -19,7 +23,6 @@ $RemoteBlock = {
         [Alias('ConvertFrom-Base64Function')]
         [Alias('ConvertFrom-Base64Scriptblock')]
         [Alias('ConvertFrom-Base64Argument')]
-        [Alias('ConvertFrom-Base64Parameter')]
         [CmdletBinding()] param([string]$InputString)
         trap {return}  # <-- don't output anything if there's any error
         $text   = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($InputString))
@@ -28,7 +31,6 @@ $RemoteBlock = {
             'Function'    {$text}
             'Scriptblock' {[scriptblock]::Create($text)}
             'Argument'    {[System.Management.Automation.PSSerializer]::Deserialize($text)}
-            'Parameter'   {[System.Management.Automation.PSSerializer]::Deserialize($text) -as [hashtable]}
         }
     }
 
@@ -37,36 +39,30 @@ $RemoteBlock = {
     $InputType      = '@INPUT@'
     $HelperFunction = ConvertFrom-Base64Function    '@FUNCTION@'   # <-- [string]
     $UsersCode      = ConvertFrom-Base64Scriptblock '@COMMAND@'    # <-- [scriptblock]
-    if ($InputType -eq 'WithNames') {
-        $UserArgs = @{ParameterList = ConvertFrom-Base64Parameter '@ARGUMENT@'}  # <-- [hashtable]
-    }
-    elseif ($InputType -eq 'NoNames') {
-        $UserArgs = @{ArgumentList  = ConvertFrom-Base64Argument  '@ARGUMENT@'}  # <-- [object]}
-    }
-    elseif ($InputType -eq 'NoParams') {$UserArgs = $null}
-    
+    $UserArgs       = ConvertFrom-Base64Argument    '@ARGUMENT@'   # <-- [object]
+
     # helper function for compressing the output, running the background job with runspaces
     Invoke-Expression -Command $HelperFunction
 
     # now run the remote block
-    $Result = Start-RunspaceJob -Scriptblock $UsersCode -Timeout $ExecTimeout @UserArgs
+    if     ($InputType -eq 'WithNames') {$UserInput = @{ParameterList = $UserArgs -as [hashtable]}}
+    elseif ($InputType -eq 'NoNames')   {$UserInput = @{ArgumentList  = $UserArgs}}
+    elseif ($InputType -eq 'NoParams')  {$UserInput = $null}
+    $Result = Start-RunspaceJob -Scriptblock $UsersCode -Timeout $ExecTimeout @UserInput
 
     # compress the output
     Write-Output (Get-CompressedOutput $Result)
 } #remote block
 
 # check if there's any user arguments
-if ($ParameterList.Keys.Count -gt 0) {
-    $InputType = 'WithNames'
-    $UserArgs = @{ParameterList = $ParameterList}
-}
-elseif ($ArgumentList.Count -gt 0) {
-    $InputType = 'NoNames'
-    $UserArgs = @{ArgumentList = $ArgumentList}
-}
-else {
-    $InputType = 'NoParams'
-    $UserArgs  = @{ArgumentList = $null}
+$ParamSetName = $PSCmdlet.ParameterSetName
+if     ($ParamSetName -like '*Params') {$InputType = 'WithNames'}
+elseif ($ParamSetName -like '*Args')   {$InputType = 'NoNames'}
+else                                   {$InputType = 'NoParams'}
+switch ($InputType) {
+    'WithNames' {$UserArgs = @{ParameterList = $ParameterList}}
+    'NoNames'   {$UserArgs = @{ArgumentList  = $ArgumentList}}
+    'NoParams'  {$UserArgs = @{ArgumentList  = $null}}
 }
 
 # encode all input with Base64 encoding (the user's scriptblock,helper functions and any arguments given)
@@ -74,8 +70,6 @@ $Funcs  = Get-Item Function:\Compress-XmlString,Function:\Start-RunspaceJob,Func
 $FunB64 = ConvertTo-Base64String -FunctionInfo $Funcs
 $CmdB64 = ConvertTo-Base64String -ScriptBlock  $ScriptBlock
 $ArgB64 = ConvertTo-Base64String @UserArgs
-
-# Note: remember that a base64 string is 33% larger than the original string
 
 # start building the remote command string
 $SB = [System.Text.StringBuilder]::new($RemoteBlock.ToString())

@@ -19,6 +19,10 @@
   like for example add variables or functions or types in the
   runspace, so they can be used within the scriptblock.
 
+## Some notes about prameter sets
+
+If you are getting an error like `Parameter set cannot be resolved using the specified named parameters`  
+Then make the parameters **mandatory** so PowerShell can identify what's needed and what not when running a command.
 
 
 ## Some notes regarding the progress bar with the foreach parallel

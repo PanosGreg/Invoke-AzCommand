@@ -26,6 +26,8 @@ switch ($PSCmdlet.ParameterSetName) {
 $byte = [Text.Encoding]::UTF8.GetBytes($Text)
 $b64  = [Convert]::ToBase64String($byte)
 
+# Note: remember that a base64 string is 33% larger than the original string
+
 Write-Output $b64
 }
 
