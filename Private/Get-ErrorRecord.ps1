@@ -3,10 +3,12 @@
 .SYNOPSIS
     Re-creates a deserialized error record
 #>
+[OutputType([System.Management.Automation.ErrorRecord])]
 [CmdletBinding()]
 param (
-    [Parameter(ValueFromPipeline)]
-    $ErrorObject = $Global:Error[0]
+    [Parameter(Mandatory,ValueFromPipeline)]
+    [ValidateScript({$_.pstypenames[0] -like 'Deserialized.*.ErrorRecord'})]
+    $ErrorObject
 )
 
 function Get-ErrorMessage {
@@ -21,21 +23,18 @@ function Get-ErrorMessage {
             $msg = $ErrorRecord.InnerException.Message
             Get-ErrorMessage $ErrorRecord.InnerException
     }
-
     if ($ErrorRecord.psobject.Properties['SerializedRemoteException'] -and
         $ErrorRecord.SerializedRemoteException) {
             $msg = $ErrorRecord.SerializedRemoteException.Message
             Get-ErrorMessage $ErrorRecord.SerializedRemoteException
     }
-
     if ($ErrorRecord.psobject.Properties['Exception'] -and
         $ErrorRecord.Exception) {
             $msg = $ErrorRecord.Exception.Message
             Get-ErrorMessage $ErrorRecord.Exception
     }
-
-    $IsEmpty = [string]::IsNullOrWhiteSpace($msg)
-    if (-not $IsEmpty) {Write-Output $msg}
+    $MsgIsEmpty = [string]::IsNullOrWhiteSpace($msg)
+    if (-not $MsgIsEmpty) {Write-Output $msg}
 } # function - Get-ErrorMessage
 
 $Messages = Get-ErrorMessage -ErrorRecord $ErrorObject
@@ -57,8 +56,12 @@ $exc  = $type::new($msg)
 $rec  = [ErrorRecord]::new($exc,$id,$cat,$obj)
 $rec.CategoryInfo.Activity = $ErrorObject.ErrorCategory_Activity
 
+# get the total number for all binding flags, we'll need this to get the fields through reflection
+$AllFlags  = [System.Enum]::GetValues([BindingFlags]) -join ','
+$BindFlags = ([BindingFlags]$AllFlags).value__
+
 # change the stacktrace - to do this we need to use reflection cause it's a ReadOnly property
-$StackField = $rec.GetType().GetField('_scriptStackTrace',[BindingFlags]50855807)
+$StackField = $rec.GetType().GetField('_scriptStackTrace',$BindFlags)
 $StackField.SetValue($rec,$ErrorObject.ErrorDetails_ScriptStackTrace)
 
 # create a new invocation from the deserialized one
@@ -72,41 +75,12 @@ $StartPosition   = [ScriptPosition]::new($_ScriptName,$_LineNumber,$_OffsetInLin
 $EndPosition     = [ScriptPosition]::new($_ScriptName,$_LineNumber,$_OffsetInLine+$_Line.Length,$_Line)
 $ScriptExtent    = [ScriptExtent]::new($StartPosition,$EndPosition)
 $NewInvocation   = [InvocationInfo]::Create($_CommandInfo,$ScriptExtent)
-$InvocaNameField = $NewInvocation.GetType().GetField('_invocationName',50855807)
+$InvocaNameField = $NewInvocation.GetType().GetField('_invocationName',$BindFlags)
 $InvocaNameField.SetValue($NewInvocation,$_CommandInfo.Name)
 
 # change the invocation info - again this needs to be done with reflection
-$InvocationField = $rec.GetType().GetField('_invocationInfo',[BindingFlags]50855807)
+$InvocationField = $rec.GetType().GetField('_invocationInfo',$BindFlags)
 $InvocationField.SetValue($rec,$NewInvocation)
 
 Write-Output $rec
 }
-
-
-<#
-# To get the Binding Flags total number:
-$AllFlags = @(
-    'Default'
-    'IgnoreCase'
-    'DeclaredOnly'
-    'Instance'
-    'Static'
-    'Public'
-    'NonPublic'
-    'FlattenHierarchy'
-    'InvokeMethod'
-    'CreateInstance'
-    'GetField'
-    'SetField'
-    'GetProperty'
-    'SetProperty'
-    'PutDispProperty'
-    'PutRefDispProperty'
-    'ExactBinding'
-    'SuppressChangeType'
-    'OptionalParamBinding'
-    'IgnoreReturn'
-    'DoNotWrapExceptions'
-) -join ','
-([System.Reflection.BindingFlags]$AllFlags).value__
-#>
