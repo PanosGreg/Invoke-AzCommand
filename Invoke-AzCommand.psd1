@@ -4,7 +4,7 @@
 
 @{
 RootModule        = 'Invoke-AzCommand.psm1'
-ModuleVersion     = '1.2.1'
+ModuleVersion     = '1.3.0'
 GUID              = '0b242b1e-b061-49a0-914d-dc9daa4e4615'
 Author            = 'Panos Grigoriadis'
 #CompanyName       = ''
@@ -28,7 +28,8 @@ FileList          = 'readme.md',
                     'Private\ConvertBase64.ps1',
                     'Private\Start-RunspaceJob.ps1',
                     'Private\Get-CompressedOutput.ps1',
-                    'Private\Get-ErrorRecord.ps1'
+                    'Private\Get-ErrorRecord.ps1',
+                    'Private\Invoke-ForEachParallel.ps1'
 PrivateData = @{
     PSData = @{
         Tags         = 'PowerShell', 'Azure', 'Remoting'
