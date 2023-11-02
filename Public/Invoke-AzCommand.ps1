@@ -66,6 +66,8 @@ param (
 # get the user's script & arguments and also our functions that we'll use inside the foreach parallel
 $ParamSetName = $PSCmdlet.ParameterSetName
 if ($ParamSetName -like '*File*') {
+    $File = Get-Item $ScriptFile -ErrorAction Stop                        # <-- this checks if the file exists
+    if ($File.Length -gt 1MB) {throw "Scriptfile too big. $ScriptFile is $($File.Length) bytes"}
     try   {$ScriptText  = Get-Content $ScriptFile -Raw -ErrorAction Stop  # <-- this checks if the file is accessible
            $ScriptBlock = [scriptblock]::Create($ScriptText)}             # <-- this checks if it's a PowerShell script
     catch {throw $_}
