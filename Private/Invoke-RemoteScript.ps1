@@ -29,15 +29,21 @@ $params = @{
 }
 try {
     Write-Verbose "$(Pre) Executing command..."
-    $job = Invoke-AzVMRunCommand @params
+    $job = Invoke-AzVMRunCommand @params 3>&1
 }
 catch {
     Write-Warning "$(Pre) There was an issue with AzVMRunCommand"
-    $msg = $_.Exception.Message.Split("`n") | where {$_ -match 'Error(Code|Message)'}
-    foreach ($AzVMError in $msg) {
-        Write-Error "$(Pre) $AzVMError"
-    }
+    Write-Error -Message (Get-AzVMError $_ $VMName).ToString()
     return
+}
+
+# remove the annoying warning message of Invoke-AzVMRunCommand
+$msg = 'Fallback context save mode to process'
+$job = $job | foreach {
+    if ($_ -is [System.Management.Automation.WarningRecord]) {
+        if ($_.Message -notlike "*$msg*") {Write-Warning $_.Message}
+    }
+    else {$_}
 }
 
 # collect the output
@@ -48,7 +54,13 @@ if ($job.State -eq 'Running') {
     return
 }
 else {
-    $Result = $job | Receive-Job
+    $Result = $job | Receive-Job 2>&1
+    $Result = $Result | foreach {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) {
+            Write-Error -Message (Get-AzVMError $_ $VMName).ToString()
+        }
+        else {$_}
+    }
     if ($Result.Value.Message) {
         $StdOut = $Result.Value.Message[0]
         $StdErr = $Result.Value.Message[1]

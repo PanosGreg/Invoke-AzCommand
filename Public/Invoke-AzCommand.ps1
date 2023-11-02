@@ -4,7 +4,7 @@ function Invoke-AzCommand {
     It runs a remote command in an Azure VM through Invoke-AzVMRunCommand,
     but it adds support for objects, streams and multi-threading.
 .EXAMPLE
-    Invoke-AzCommand -VM (Get-AzVM) -ScriptBlock {$psversiontable}
+    Invoke-AzCommand -VM (Get-AzVM) -ScriptBlock {$PSVersionTable}
     # we get an object as output
 .EXAMPLE
     Invoke-AzCommand (Get-AzVM) {param($Svc) $Svc.Name} -Arg (Get-Service WinRM)
@@ -21,6 +21,14 @@ function Invoke-AzCommand {
     $All = Get-AzVM
     Invoke-AzCommand $All {param($Size,$Name) "$Name - $Size"} -Param @{Name='John';Size='XL'}
     # we pass named parameters instead of positional
+.EXAMPLE
+    # get a running Azure Linux VM (not Windows) or a Windows VM that is stopped (not running)
+    Invoke-AzCommand $LinuxVM {$env:ComputerName}
+    Invoke-AzCommand $StoppedVM {$env:ComputerName}
+    # it returns human readable error messages with all the important details
+.EXAMPLE
+    Invoke-AzCommand $VM {Get-Service Non-Existing-Service}
+    # it returns the actual error message from the remote VM as-if it was local
 #>
 [CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (
@@ -52,7 +60,7 @@ param (
 
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
     [int]$DeliveryTimeout  = 666,   # <-- time needed to run the Invoke-AzVMRunCommand, default 10+ minutes (ExecTime plus 1+ minute for AzVMRunCommand to reach the Azure VM)
-    [int]$ExecutionTimeout = 600
+    [int]$ExecutionTimeout = 600    # <-- this is the time needed to run the script on the remote VM
 )
 
 # get the user's script & arguments and also our functions that we'll use inside the foreach parallel
@@ -68,8 +76,8 @@ else                                   {$UserArgs = @{}}
 
 $RemoteScript  = Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
 $ModuleFolder  = $MyInvocation.MyCommand.Module.ModuleBase
-$ScriptsToLoad = 'Invoke-RemoteScript','Initialize-AzModule','Receive-RemoteOutput','Expand-XmlString'
-$ScriptList    = $ScriptsToLoad | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}
+$ScriptsToLoad = 'Invoke-RemoteScript,Initialize-AzModule,Receive-RemoteOutput,Expand-XmlString,Get-AzVMError'
+$ScriptList    = $ScriptsToLoad.Split(',') | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}
 
 # create the scriptblock that we'll run in parallel
 $Block = {

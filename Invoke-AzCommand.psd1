@@ -29,7 +29,8 @@ FileList          = 'readme.md',
                     'Private\Start-RunspaceJob.ps1',
                     'Private\Get-CompressedOutput.ps1',
                     'Private\Get-ErrorRecord.ps1',
-                    'Private\Invoke-ForEachParallel.ps1'
+                    'Private\Invoke-ForEachParallel.ps1',
+                    'Private\Get-AzVMError.ps1'
 PrivateData = @{
     PSData = @{
         Tags         = 'PowerShell', 'Azure', 'Remoting'
