@@ -1,15 +1,18 @@
 function Receive-RemoteOutput {
 [cmdletbinding()]
 param (
+    [Parameter(Position=0)]
     [string]$InputString,
+    
+    [Parameter(Position=1)]
     [string]$FromVM
 )
 $xml = Expand-XmlString $InputString -ErrorAction Stop -Verbose:$false
 
-try   {$out = [Management.Automation.PSSerializer]::Deserialize($xml)}
+try   {$out = [System.Management.Automation.PSSerializer]::Deserialize($xml)}
 catch {$out = $text}
 
-# helper functions to add the VM Name as prefix in the Verbose or Warning messages
+# helper functions to add the VM Name as prefix in the Verbose, Warning or Info messages
 function script:InfoMsg($Object,$Server=$FromVM) {
     '[{0}] {1}' -f $Server.ToUpper(),$Object.InformationalRecord_Message
 }
@@ -18,13 +21,15 @@ function script:GetMsg($Object,$Server=$FromVM) {
 }
 
 $DSMA = 'Deserialized.System.Management.Automation'
+$Hash = @{
+    "$DSMA.VerboseRecord"     = {Write-Verbose (InfoMsg $_) -Verbose}
+    "$DSMA.WarningRecord"     = {Write-Warning (InfoMsg $_)}
+    "$DSMA.InformationRecord" = {Write-Host    (GetMsg $_)}
+    "$DSMA.ErrorRecord"       = {$PSCmdlet.WriteError((Get-ErrorRecord $_))}
+}
 $out | foreach {
-    $Type = $_.pstypenames | Select-Object -First 1
-    if     ($Type -eq "$DSMA.VerboseRecord")     {Write-Verbose (InfoMsg $_) -Verbose}
-    elseif ($Type -eq "$DSMA.WarningRecord")     {Write-Warning (InfoMsg $_)}
-    elseif ($Type -eq "$DSMA.InformationRecord") {Write-Host    (GetMsg $_)}
-   #elseif ($Type -eq "$DSMA.ErrorRecord")       {$_ | Out-Default}  # <-- need to find a way to show Errors in Stream #2
-    elseif ($Type -eq "$DSMA.ErrorRecord")       {$PSCmdlet.WriteError((Get-ErrorRecord $_))}
-    else                                         {Write-Output $_}
+    $Type = $_.pstypenames.Where({$_},'First',1) -as [string]
+    if ($Type -like "$DSMA.*Record") {. $Hash.$Type}
+    else                             {Write-Output $_}
 }
 }

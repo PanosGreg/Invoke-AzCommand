@@ -43,11 +43,17 @@ param (
     [Parameter(Position=2)]
     [string]$ActivityProperty,
 
+    [Parameter(Position=3)]
+    [ValidateScript(
+        {$_ -ge 1 -and $_ -le [System.Environment]::ProcessorCount*3},
+        ErrorMessage = 'Please enter a number between 1 and up to triple the number of your CPU threads'
+    )]
     [int]$ThrottleLimit = 10
 )
 
 #requires -Version 7.0
-# Note: The foreach -Parallel parameter is available on PS 7+
+# Note: The foreach -Parallel parameter is only available on PS 7+
+#       Also the ErrorMessage in the ValidateScript is only available on PS 6+
 
 # we need to check that the ActivityProperty is actually a property of the InputObject
 if ($PSBoundParameters.ContainsKey('ActivityProperty')) {

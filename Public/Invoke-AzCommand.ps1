@@ -4,12 +4,10 @@ function Invoke-AzCommand {
     It runs a remote command in an Azure VM through Invoke-AzVMRunCommand,
     but it adds support for objects, streams and multi-threading.
 .EXAMPLE
-    $All = Get-AzVM
-    Invoke-AzCommand -VM $All -ScriptBlock {$psversiontable}
+    Invoke-AzCommand -VM (Get-AzVM) -ScriptBlock {$psversiontable}
     # we get an object as output
 .EXAMPLE
-    $All = Get-AzVM
-    Invoke-AzCommand $All {param($Svc) $Svc.Name} -Arg (Get-Service WinRM)
+    Invoke-AzCommand (Get-AzVM) {param($Svc) $Svc.Name} -Arg (Get-Service WinRM)
     # we give an object for input
 .EXAMPLE
     $All = Get-AzVM
@@ -19,14 +17,19 @@ function Invoke-AzCommand {
     $All = Get-AzVM ; $file = 'C:\Temp\MyScript.ps1'
     Invoke-AzCommand $All $file
     # we run a script file instead of a scriptblock on the remote VM
+.EXAMPLE
+    $All = Get-AzVM
+    Invoke-AzCommand $All {param($Size,$Name) "$Name - $Size"} -Param @{Name='John';Size='XL'}
+    # we pass named parameters instead of positional
 #>
 [CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (
     [Parameter(Mandatory,Position=0)]
     [ValidateScript({
         $Chk = $_ | foreach {$_.GetType().Name -match 'PSVirtualMachine(List|ListStatus)?$'}
-        $Chk -notcontains $false
-    })]
+        $Chk -notcontains $false},
+        ErrorMessage = 'Please provide a valid Azure VM object type'
+    )]
     $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
 
     [Parameter(Mandatory,Position=1,ParameterSetName = 'ScriptBlock')]
@@ -52,40 +55,27 @@ param (
     [int]$ExecutionTimeout = 600
 )
 
-# get the user's script and our functions that we'll use inside the foreach parallel
+# get the user's script & arguments and also our functions that we'll use inside the foreach parallel
 $ParamSetName = $PSCmdlet.ParameterSetName
 if ($ParamSetName -like '*File*') {
     try   {$ScriptText  = Get-Content $ScriptFile -Raw -ErrorAction Stop  # <-- this checks if the file is accessible
            $ScriptBlock = [scriptblock]::Create($ScriptText)}             # <-- this checks if it's a PowerShell script
     catch {throw $_}
 }
-$RemoteParams = @{
-    Scriptblock = $ScriptBlock
-    Timeout     = $ExecutionTimeout
-}
-if     ($ParamSetName -like '*Args')   {$RemoteParams.ArgumentList  = $ArgumentList}
-elseif ($ParamSetName -like '*Params') {$RemoteParams.ParameterList = $ParameterList}
+if     ($ParamSetName -like '*Args')   {$UserArgs = @{ArgumentList  = $ArgumentList}}
+elseif ($ParamSetName -like '*Params') {$UserArgs = @{ParameterList = $ParameterList}}
+else                                   {$UserArgs = @{}}
 
-$RemoteScript  = Write-RemoteScript @RemoteParams
+$RemoteScript  = Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
 $ModuleFolder  = $MyInvocation.MyCommand.Module.ModuleBase
 $ScriptsToLoad = 'Invoke-RemoteScript','Initialize-AzModule','Receive-RemoteOutput','Expand-XmlString'
 $ScriptList    = $ScriptsToLoad | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}
-
-# create a VM list
-$VMList = $VM | foreach {
-    $SubID = [regex]::Match($_.Id,'^\/subscriptions\/([0-9|a-f|-]{36})\/').Groups[1].Value
-    [pscustomobject] @{
-        Name              = $_.Name  # <-- Azure VM Name
-        ResourceGroupName = $_.ResourceGroupName
-        SubscriptionID    = $SubID   # <-- Azure Subscription ID
-    }
-}
 
 # create the scriptblock that we'll run in parallel
 $Block = {
     $srv = $_.Name
     $rg  = $_.ResourceGroupName
-    $sub = $_.SubscriptionID
+    $sub = [regex]::Match($_.Id,'^\/subscriptions\/([0-9|a-f|-]{36})\/').Groups[1].Value
     $scr = $using:RemoteScript
     $dur = $using:DeliveryTimeout
 
@@ -101,18 +91,8 @@ $Block = {
     Invoke-RemoteScript -VMName $srv -RGName $rg -ScriptString $scr -Timeout $dur
 }
 
-# finally run the script
-$params = @{
-    InputObject      = $VMList
-    ScriptBlock      = $Block
-    ThrottleLimit    = $ThrottleLimit
-    ActivityProperty = 'Name'
-}
-$out = Invoke-ForEachParallel @params 
-
-# show the results
-$out | foreach {
-    Receive-RemoteOutput -InputString $_.Output -FromVM $_.VMName | where {$_.psobject}
-}
+# finally run the script and show the results
+$out = Invoke-ForEachParallel $VM $Block Name $ThrottleLimit
+$out | foreach {Receive-RemoteOutput $_.Output $_.VMName | where {$_.psobject}}
 
 }

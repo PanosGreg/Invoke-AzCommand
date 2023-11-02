@@ -41,7 +41,7 @@ $RemoteBlock = {
     $UsersCode      = ConvertFrom-Base64Scriptblock '@COMMAND@'    # <-- [scriptblock]
     $UserArgs       = ConvertFrom-Base64Argument    '@ARGUMENT@'   # <-- [object]
 
-    # helper function for compressing the output, running the background job with runspaces
+    # helper functions to a)compress the output, b)run the background job with runspaces
     Invoke-Expression -Command $HelperFunction
 
     # now run the remote block
