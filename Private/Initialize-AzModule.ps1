@@ -25,10 +25,10 @@ foreach ($Mod in $Module) {
 $Global:VerbosePreference = $Orig
 
 # set the Azure subscription, this also logs in to Azure
-$ctx = Get-AzContext -RefreshContextFromTokenCache -ListAvailable:$false -Verbose:$false
+$ctx = Get-AzContext -RefreshContextFromTokenCache -ListAvailable:$false -Verbose:$false 3>$null
 $CurrentSub = $ctx.Subscription.Id
 if ($CurrentSub -ne $SubscriptionID) {
-    Set-AzContext -Subscription $SubscriptionID -Verbose:$false -EA Stop | Out-Null
+    Set-AzContext -Subscription $SubscriptionID -Verbose:$false -EA Stop 3>$null | Out-Null
 }
-
+# note: I'm silencing the warning stream to avoid the annoying message "Fallback context save mode to process"
 }
