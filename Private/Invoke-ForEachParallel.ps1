@@ -30,7 +30,10 @@ function Invoke-ForEachParallel {
     # it uses the automatic variable $ProgressStatus to show progress messages
     # it also uses the ActivityProperty to define the activity label
     # if the user does not provide an ActivityProperty, then a default label will be shown
-    # finally, in the scriptblock we also have a $using: variable to pass ad-hoc data inside.   
+    # finally, in the scriptblock we also have a $using: variable to pass ad-hoc data inside.
+.NOTES
+    The initial idea and code comes from:
+    https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/write-progress-across-multiple-threads
 #>
 [cmdletbinding()]
 param (

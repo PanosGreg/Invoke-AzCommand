@@ -10,7 +10,7 @@ param (
 $xml = Expand-XmlString $InputString -ErrorAction Stop -Verbose:$false
 
 try   {$out = [System.Management.Automation.PSSerializer]::Deserialize($xml)}
-catch {$out = $text}
+catch {$out = $xml}    # <-- if the output was too big (>4KB) then that would be plain text, not serialized
 
 # helper functions to add the VM Name as prefix in the Verbose, Warning or Info messages
 function script:InfoMsg($Object,$Server=$FromVM) {

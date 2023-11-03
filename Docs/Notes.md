@@ -19,68 +19,46 @@
   like for example add variables or functions or types in the
   runspace, so they can be used within the scriptblock.
 
-## Some notes about prameter sets
+## Some notes about parameter sets
 
 If you are getting an error like `Parameter set cannot be resolved using the specified named parameters`  
 Then make the parameters **mandatory** so PowerShell can identify what's needed and what not when running a command.
 
+## Some examples below
 
-## Some notes regarding the progress bar with the foreach parallel
+I'm just going to copy/paste the examples I have in the public function, you can always have a look with `Get-Help Invoke-AzCommand -Examples`
 
 ```PowerShell
-# Progress Bar with ForEach Parallel, related variables and setup
-# we'll need a thread-safe hashtable for the progress bar
-$ProgressParams = [System.Collections.Concurrent.ConcurrentDictionary[int,hashtable]]::new()
+Invoke-AzCommand -VM (Get-AzVM) -ScriptBlock {$PSVersionTable}
+# we get an object as output
 
-# get the max length of the VM name property, we'll use the VMName as the <Activity> label
-$Max = ($VM | Measure-Object -Property 'Name' -Maximum).Maximum.Length
+Invoke-AzCommand (Get-AzVM) {param($Svc) $Svc.Name} -Arg (Get-Service WinRM)
+# we give an object for input
 
-## We need to create a unique ID for each item of the input array
-## This will be the Key of the concurrent hashtable
-## This ID must be an [int], cause the ID param from Write-Progress is [int]
-$i = 0
-$ListWithID = $VM | foreach {
-    $i++
-    # add the progress id to the concurrent dictionary
-    [void]$ProgressParams.TryAdd($i,@{})
+$All = Get-AzVM
+Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'aaa'}
+# we get different streams in the output
 
-    # add the progress id to the input data set
-    $SubID = [regex]::Match($_.Id,'^\/subscriptions\/([0-9|a-f|-]{36})\/').Groups[1].Value
-    [pscustomobject] @{
-        Name              = $_.Name
-        ResourceGroupName = $_.ResourceGroupName
-        SubscriptionID    = $SubID   # <-- Azure Subscription ID
-        ProgressID        = $i
-    }
-}
+$All = Get-AzVM ; $file = 'C:\Temp\MyScript.ps1'
+Invoke-AzCommand $All $file
+# we run a script file instead of a scriptblock on the remote VM
 
-# run the command with multi-threading and progress bars
-$Job = $ListWithID | ForEach-Object -ThrottleLimit $ThrottleLimit -Verbose -AsJob -Parallel {
-    $HashCopy = $using:ProgressParams
-    $progress = $HashCopy.$($_.ProgressID)
+$All = Get-AzVM
+Invoke-AzCommand $All {param($Size,$Name) "$Name - $Size"} -Param @{Name='John';Size='XL'}
+# we pass named parameters instead of positional
 
-    $Padding           = $using:Max - $_.Name.Length
-    $progress.Id       = $_.ProgressID
-    $progress.Activity = "[{0}{1}]" -f $_.Name,(' '*$Padding)
+# get a running Azure Linux VM (not Windows) or a Windows VM that is stopped (not running)
+Invoke-AzCommand $LinuxVM {$env:ComputerName}
+Invoke-AzCommand $StoppedVM {$env:ComputerName}
+# it returns human readable error messages with all the important details
 
-    $srv = $_.Name
-    $rg  = $_.ResourceGroupName
-    $sub = $_.SubscriptionID
-    $scr = $using:RemoteScript
-    $dur = $using:DeliveryTimeout
+Invoke-AzCommand $VM {Get-Service Non-Existing-Service}
+# it returns the actual error message from the remote VM as-if it was local
 
-    $VerbosePreference = $using:VerbosePreference
-    $using:ScriptList | foreach {. $_}  # <-- dot-source our helper functions
+Invoke-AzCommand $VM {Get-Service -EA 0}
+# it returns a trucated part of the output in plain text, not objects
+# because the output was too big to be send over through Az VM Run Command.
 
-    # load the Azure modules and set the Subscription
-    $progress.Status = 'Loading Azure modules...'
-    Initialize-AzModule -SubscriptionID $sub -Verbose:$false
-
-    # run the user's script on the remote VM
-    $progress.Status = 'Running remote command...'
-    Invoke-RemoteScript -VMName $srv -RGName $rg -ScriptString $scr -Timeout $dur
-
-    # Mark progress as completed
-    $progress.Completed = $true
-}
+Invoke-AzCommand $VM {'Started';Start-Sleep 30;'Finished'} -ExecutionTimeout 10
+# it returns partial output, due to the timeout expiration
 ```

@@ -11,7 +11,7 @@ function Invoke-AzCommand {
     # we give an object for input
 .EXAMPLE
     $All = Get-AzVM
-    Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'aaa'}
+    Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'ooo'}
     # we get different streams in the output
 .EXAMPLE
     $All = Get-AzVM ; $file = 'C:\Temp\MyScript.ps1'
@@ -29,6 +29,13 @@ function Invoke-AzCommand {
 .EXAMPLE
     Invoke-AzCommand $VM {Get-Service Non-Existing-Service}
     # it returns the actual error message from the remote VM as-if it was local
+.EXAMPLE
+    Invoke-AzCommand $VM {Get-Service -EA 0}
+    # it returns a trucated part of the output in plain text, not objects
+    # because the output was too big to be send over through Az VM Run Command.
+.EXAMPLE
+    Invoke-AzCommand $VM {'Started';Start-Sleep 30;'Finished'} -ExecutionTimeout 10
+    # it returns partial output, due to the timeout expiration
 #>
 [CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (
@@ -63,7 +70,7 @@ param (
     [int]$ExecutionTimeout = 600    # <-- this is the time needed to run the script on the remote VM
 )
 
-# get the user's script & arguments and also our functions that we'll use inside the foreach parallel
+# get the user's script and arguments (if any)
 $ParamSetName = $PSCmdlet.ParameterSetName
 if ($ParamSetName -like '*File*') {
     $File = Get-Item $ScriptFile -ErrorAction Stop                        # <-- this checks if the file exists
@@ -76,10 +83,13 @@ if     ($ParamSetName -like '*Args')   {$UserArgs = @{ArgumentList  = $ArgumentL
 elseif ($ParamSetName -like '*Params') {$UserArgs = @{ParameterList = $ParameterList}}
 else                                   {$UserArgs = @{}}
 
-$RemoteScript  = Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
-$ModuleFolder  = $MyInvocation.MyCommand.Module.ModuleBase
-$ScriptsToLoad = 'Invoke-RemoteScript,Initialize-AzModule,Receive-RemoteOutput,Expand-XmlString,Get-AzVMError'
-$ScriptList    = $ScriptsToLoad.Split(',') | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}
+# assemble the script that we'll run on the remote VM
+$RemoteScript = Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
+
+# get the functions that we'll use inside the foreach parallel
+$ModuleFolder = $MyInvocation.MyCommand.Module.ModuleBase
+$ScriptToLoad = 'Invoke-RemoteScript,Initialize-AzModule,Receive-RemoteOutput,Expand-XmlString,Get-AzVMError'
+$ScriptList   = $ScriptToLoad.Split(',') | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}
 
 # create the scriptblock that we'll run in parallel
 $Block = {
