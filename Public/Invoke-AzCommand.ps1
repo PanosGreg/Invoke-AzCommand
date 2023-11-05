@@ -25,7 +25,7 @@ function Invoke-AzCommand {
     # get a running Azure Linux VM (not Windows) or a Windows VM that is stopped (not running)
     Invoke-AzCommand $LinuxVM {$env:ComputerName}
     Invoke-AzCommand $StoppedVM {$env:ComputerName}
-    # it returns human readable error messages with all the important details
+    # it returns human readable error messages with all the relevant details
 .EXAMPLE
     Invoke-AzCommand $VM {Get-Service Non-Existing-Service}
     # it returns the actual error message from the remote VM as-if it was local
@@ -36,6 +36,11 @@ function Invoke-AzCommand {
 .EXAMPLE
     Invoke-AzCommand $VM {'Started';Start-Sleep 30;'Finished'} -ExecutionTimeout 10
     # it returns partial output, due to the timeout expiration
+.EXAMPLE
+    $result = Invoke-AzCommand $VM {Get-Service WinRM,'Unknown-Service'}
+    $result | select AzComputerName,AzUserName
+    $error[0] | select AzComputerName,AzUserName
+    # the returned output is enriched with the VM's name and your azure account that ran it
 #>
 [CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (
@@ -113,6 +118,6 @@ $Block = {
 
 # finally run the script and show the results
 $out = Invoke-ForEachParallel $VM $Block Name $ThrottleLimit
-$out | foreach {Receive-RemoteOutput $_.Output $_.VMName | where {$_.psobject}}
+$out | foreach {Receive-RemoteOutput $_.Output $_.VMName}
 
 }

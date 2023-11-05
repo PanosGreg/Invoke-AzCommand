@@ -8,7 +8,9 @@
 param (
     [Parameter(Mandatory,ValueFromPipeline)]
     [ValidateScript({$_.pstypenames[0] -like 'Deserialized.*.ErrorRecord'})]
-    $ErrorObject
+    $ErrorObject,
+
+    [hashtable]$ExtraProperties
 )
 
 function Get-ErrorMessage {
@@ -81,6 +83,11 @@ $InvocaNameField.SetValue($NewInvocation,$_CommandInfo.Name)
 # change the invocation info - again this needs to be done with reflection
 $InvocationField = $rec.GetType().GetField('_invocationInfo',$BindFlags)
 $InvocationField.SetValue($rec,$NewInvocation)
+
+# enrich the error record with extra properties, if given any
+if ($ExtraProperties) {
+    $rec | Add-Member -NotePropertyMembers $ExtraProperties -Force
+}
 
 Write-Output $rec
 }

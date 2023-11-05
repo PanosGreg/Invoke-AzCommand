@@ -4,16 +4,17 @@
 
 This is a wrapper around `Invoke-AzVMRunCommand` that adds support for a few extra things.
 Specifically it supports objects (for both input and output), streams, timeouts and parallelism.
-And also compression on output to support sizes a bit larger than 4KB. As well as output of remote error records onto the local machine.
+And also compresses the output to support sizes a bit larger than 4KB, it shows the remote error records onto the local machine and finally enriches the objects with the computername.
+
+In general I tried to simulate the functionality of `Invoke-Command` through the Azure run command.
 
 
 ## Out-Of-Scope
 
 The following features are out of scope, at least for now:
 
-- no logging in the remote machine
-- no encryption
-- I don't enrich the output objects (for ex. add the computername)
+- no logging in the remote machine (you can do that on your own of course)
+- no encryption (I may add encryption later on)
 
 
 ## Timeout settings:
