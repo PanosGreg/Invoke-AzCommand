@@ -40,7 +40,7 @@ function Invoke-AzCommand {
     $result = Invoke-AzCommand $VM {Get-Service WinRM,'Unknown-Service'}
     $result | select AzComputerName,AzUserName
     $error[0] | select AzComputerName,AzUserName
-    # the returned output is enriched with the VM's name and your azure account that ran it
+    # the returned output is enriched with the VM's name and the azure account that ran it
 #>
 [CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (

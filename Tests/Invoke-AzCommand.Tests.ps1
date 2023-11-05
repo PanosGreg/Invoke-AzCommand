@@ -64,6 +64,11 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
         Context 'Stream Output'  {} # verbose, warning, information
         Context 'Normal Output'  {} # plain string, object, truncated string
         Context 'Enriched Output'   # azcomputername, azusername, also for error records
+
+    More goals:
+    - to check if the command will work with new Az module versions
+    - to check if the command will work with new PowerShell versions
+    - to check if the command works when ran from Linux or Windows
 #>
 
 
