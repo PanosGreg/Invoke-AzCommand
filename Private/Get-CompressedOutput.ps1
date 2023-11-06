@@ -8,20 +8,23 @@ param (
 $CompressionCount = 0
 
 # serialize and compress the output
-$xml = [Management.Automation.PSSerializer]::Serialize($InputObject)
+$xml = [System.Management.Automation.PSSerializer]::Serialize($InputObject)  # <-- default depth is 1
 $out = Compress-XmlString $xml
 $CompressionCount++
+
+# prepare the message if output is truncated
+$Escape  = [char]27
+$Orange  = "$Escape[38;2;255;126;0m"
+$Yellow  = "$Escape[38;2;248;248;0m"
+$Italic  = "$Escape[3m"
+$NoItals = "$Escape[23m"
+$Default = "$Escape[0m"
+$Message = "$Orange***Output was$Yellow too long$Orange, so it's shown as plain text $Italic$Yellow(and perhaps truncated)$NoItals$Orange***$Default"
 
 # fallback to plain text instead of serialized objects if too big
 $Text = [System.Text.StringBuilder]::new()
 if ($out.Length -gt $LimitBytes) {
-    $Escape  = [char]27
-    $Orange  = "$Escape[38;2;255;126;0m"
-    $Yellow  = "$Escape[38;2;248;248;0m"
-    $Italic  = "$Escape[3m"
-    $NoItals = "$Escape[23m"
-    $Default = "$Escape[0m"
-    [void]$Text.AppendLine("$Orange***Output was$Yellow too long$Orange, so it's shown as plain text $Italic$Yellow(and perhaps truncated)$NoItals$Orange***$Default")
+    [void]$Text.AppendLine($Message)
     [void]$Text.Append(($InputObject | Out-String -Width 120))
     $out = Compress-XmlString $Text.ToString()
     $CompressionCount++
@@ -45,7 +48,7 @@ while ($out.Length -gt $LimitBytes) {
 # finally give a warning if even that is still too big
 if ($out.Length -gt $LimitBytes) {
     $obj = Write-Warning "Output is too long (Length: $($out.Length) bytes)" 3>&1
-    $xml = [Management.Automation.PSSerializer]::Serialize($obj)
+    $xml = [System.Management.Automation.PSSerializer]::Serialize($obj)
     $out = Compress-XmlString $xml
     $CompressionCount++
 }
