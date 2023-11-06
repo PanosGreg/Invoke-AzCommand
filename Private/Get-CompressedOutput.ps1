@@ -15,8 +15,14 @@ $CompressionCount++
 # fallback to plain text instead of serialized objects if too big
 $Text = [System.Text.StringBuilder]::new()
 if ($out.Length -gt $LimitBytes) {
-    [void]$Text.AppendLine('===Output was too long, so it''s shown as plain text (and perhaps truncated)===')
-    [void]$Text.Append(($InputObject | Out-String))
+    $Escape  = [char]27
+    $Orange  = "$Escape[38;2;255;126;0m"
+    $Yellow  = "$Escape[38;2;248;248;0m"
+    $Italic  = "$Escape[3m"
+    $NoItals = "$Escape[23m"
+    $Default = "$Escape[0m"
+    [void]$Text.AppendLine("$Orange***Output was$Yellow too long$Orange, so it's shown as plain text $Italic$Yellow(and perhaps truncated)$NoItals$Orange***$Default")
+    [void]$Text.Append(($InputObject | Out-String -Width 120))
     $out = Compress-XmlString $Text.ToString()
     $CompressionCount++
 }

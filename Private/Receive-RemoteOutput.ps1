@@ -23,7 +23,10 @@ function script:GetMsg($Object,$Server=$FromVM) {
 }
 
 # we'll enrich the output with extra properties
-$Props = @{AzComputerName=$FromVM;AzUserName=(Get-AzContext).Account.Id}
+$Props = @{
+    AzComputerName = $FromVM.ToUpper()
+    AzUserName     = (Get-AzContext).Account.Id
+}
 
 $DSMA = 'Deserialized.System.Management.Automation'
 $Hash = @{
