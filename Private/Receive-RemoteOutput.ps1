@@ -37,9 +37,9 @@ $Hash = @{
     "$DSMA.ErrorRecord"       = {$PSCmdlet.WriteError((Get-ErrorRecord $_ $AzProps))}
 }
 $out | foreach {
-    $Type = $_.pstypenames.Where({$_},'First',1) -as [string]
-    if     ($Type -like "$DSMA.*Record") {. $Hash.$Type}   # <-- write verbose/warning/info/error
-    elseif ($Type -like "$DSMA.*PSCustomObject") {         # <-- add extra properties but don't show them by default
+    $Types = $_.pstypenames
+    if     ($Types[0] -like  "$DSMA.*Record") {. $Hash[$Types[0]]}   # <-- write verbose/warning/info/error
+    elseif ($Types -contains "$DSMA.PSCustomObject") {               # <-- add extra properties but don't show them by default
         $prop = [string[]]$_.psobject.Properties.Name
         $pset = [PSPropertySet]::new('DefaultDisplayPropertySet',$prop)
         $Memb = [PSMemberInfo[]]@($pset)
@@ -48,7 +48,7 @@ $out | foreach {
         #       the resulting deserialized pscustomobject won't show it. Hance why it doesn't matter if we overrwrite the PSStandardMembers
         $_ | Add-Member -NotePropertyMembers $AzProps -Force -PassThru   # <-- and then add our custom properties, which won't be part of the default set
     }
-    else {                                                 # <-- if not PSCustomObject, then just add the properties as-is
+    else {                                                           # <-- if not PSCustomObject, then just add the properties as-is
         $_ | Add-Member -NotePropertyMembers $AzProps -Force -PassThru
     }
 }
