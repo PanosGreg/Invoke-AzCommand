@@ -34,7 +34,7 @@ if ($Success) {
     $IsType = $VM | foreach {$_.GetType().Name -match 'PSVirtualMachine(List|ListStatus)?$'}
     $HasCorrectType = $IsType -notcontains $false
     if (-not $HasCorrectType) {
-        Write-Warning 'Please provide valid Azure VM object type'
+        $WarningMsg = 'Please provide a valid Azure VM object type'
         $Success = $false
     }
 }
@@ -43,7 +43,7 @@ if ($Success) {
 if ($Success) {
     $IsMoreThanOne = ([array]($VM.Name | select -Unique)).Count -ge 2
     if (-not $IsMoreThanOne) {
-        Write-Warning 'Please provide more than one VM to test parallel functionality'
+        $WarningMsg = 'Please provide more than one VM to test parallel functionality'
         $Success = $false
     }
 }
@@ -55,7 +55,7 @@ if ($Success) {
     }    
     $HasOneSub = ($SubID | select -Unique).Count -eq 1
     if (-not $HasOneSub) {
-        Write-Warning 'All provided VMs must be part of the same Azure Subscription'
+        $WarningMsg = 'All provided VMs must be part of the same Azure Subscription'
         $Success = $false
     }
 }
@@ -64,7 +64,7 @@ if ($Success) {
 if ($Success) {
     $HasCommand = (Get-Command -Name 'Get-AzContext' -ErrorAction Ignore) -as [bool]
     if (-not $HasCommand) {
-        Write-Warning 'Could not find the Get-AzContext command, make sure you have the Az.Accounts module'
+        $WarningMsg = 'Could not find the Get-AzContext command, make sure you have the Az.Accounts module'
         $Success = $false
     }
 }
@@ -75,12 +75,12 @@ if ($Success) {
     $CurrentSub = $AzContext.Subscription.Id
     $SubID      = $SubID | select -First 1
     if ($CurrentSub -ne $SubID) {
-        Write-Warning "Please change to the Azure Subscription with ID: $SubID"
+        $WarningMsg = "Please change the Azure Subscription to the same one as the VMs provided, that has the ID $SubID"
         $Success = $false
     }
 }
 
-if (-not $Success) {Write-Warning 'Please check the above pre-requisites'}
+if (-not $Success) {Write-Warning $WarningMsg}
 
 Write-Output $Success
 }

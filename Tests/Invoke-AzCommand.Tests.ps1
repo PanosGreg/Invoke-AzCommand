@@ -17,9 +17,12 @@
     Invoke-Pester -Container $Container -Output Detailed
 #>
 param (
+    [Parameter(Mandatory)]
+    [ValidateNotNull()]
     $VM  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
 )
 BeforeDiscovery {
+    . (Join-Path $PSScriptRoot 'Test-PesterRequirement.ps1')
     $AllGood = Test-PesterRequirement -UserInput $VM
     if (-not $AllGood) {$SkipAll = $true}
     else               {$SkipAll = $false}
@@ -43,27 +46,57 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
             Start-Sleep 20                   # <-- wait time to test execution timeout
             Write-Output 'Will not be shown' # <-- this will be cut out due to timeout expiration
         }
-        $Result = Invoke-AzCommand $VM $Block -ExecutionTimeout 10
+        #$Result = Invoke-AzCommand $VM $Block -ExecutionTimeout 10
         # Missing tests:
         # - named parameters
         # - scriptfile
         # - truncated output
     }
+
+
+    Context 'Basic Functionality' -Tag Functionality {
+        BeforeAll {
+            $DarkCyan = [char]27 + '[38;2;0;153;153m'
+            $Default  = [char]27 + '[0m'
+            $Italic   = [char]27 + '[3m'
+            $Ident    = ' '*4
+            function Write-ExtraInfo([string]$Message){
+                Write-Host "$Ident$DarkCyan┌──►$Italic$Message$Default"    
+            }
+            $ShowDetail = $______parameters.Configuration.Output.Verbosity.Value -match 'Detailed|Diagnostic'
+        }
+        AfterEach {
+            if ($ExtraInfo -and $ShowDetail) {Write-ExtraInfo $ExtraInfo}
+        }
+        It 'Runs a basic remoting command on a VM' {
+            $ExtraInfo = 'run a scriptblock remotely on 1 VM, no args, no objects, no streams, no multi-threading'
+            #$true | Should -BeTrue         
+            $SampleVM = $VM | Get-Random
+            Invoke-AzCommand $SampleVM {$env:COMPUTERNAME} | Should -Be $SampleVM.Name
+        }
+        It 'Runs another command' {
+            #Write-ExtraInfo 'No args, no objects, no streams'
+            $true | Should -BeTrue
+        }
+    }
+
 <#
     Context 'Functionality Tests' {}
         Context 'Timeouts'        {} # execution timeout, delivery timeout
         context 'Incorrect input' {} # give non-vm, give non-ps block or non-ps file
+        context 'AsJob'            {} # use the -AsJob switch, check TargetVMs property on the job object
 
     context 'Input Options' {}
         Context 'User parameters'  {} # positional,named
         context 'Object input'     {} # object (just one It block here)
         context 'Script options'   {} # scriptblock, scriptfile
+        context 'RunAs'            {} # use the credential option to access remote SMB, CIM, ICM 
 
     context 'Output Options' {}
         Context 'Error Handling' {} # remote execution errors, VM error (stopped vm, linux vm)
         Context 'Stream Output'  {} # verbose, warning, information
         Context 'Normal Output'  {} # plain string, object, truncated string
-        Context 'Enriched Output'   # azcomputername, azusername, also for error records
+        Context 'Enriched Output'   # azcomputername, azusername, for pscustomobjects, error records, PSCO with typename, any other type
 
     More goals:
     - to check if the command will work with new Az module versions

@@ -1,4 +1,8 @@
 function Invoke-RemoteScript {
+<#
+.SYNOPSIS
+    It assembles the scriptblock (as a string) that will run on the remote VM
+#>
 [CmdletBinding()]
 param (
     [Parameter(Mandatory)]

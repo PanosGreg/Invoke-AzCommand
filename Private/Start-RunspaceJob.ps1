@@ -8,14 +8,34 @@ param (
 
     [hashtable]$ParameterList,
 
-    [int]$Timeout
+    [int]$Timeout,
+
+    [pscredential]$RunAs
 )
 
-# create a new powershell using the default configuration for a runspace
-$cmd = [PowerShell]::Create()
+. ([scriptblock]::Create('using namespace System.Management.Automation'))  # PSDataCollection,PowerShell,Runspaces.*
+$State = [Runspaces.InitialSessionState]::CreateDefault()
+
+# add the required context to run as a different user
+if ($RunAs) {
+    $MyFunc   = Get-Item Function:\Invoke-WithImpersonation -ErrorAction Stop
+    $VarEntry = [Runspaces.SessionStateVariableEntry]::new('_Creds',$RunAs,$null)
+    $FunEntry = [Runspaces.SessionStateFunctionEntry]::new($MyFunc.Name,$MyFunc.Definition)
+    [void]$State.Commands.Add($FunEntry)
+    [void]$State.Variables.Add($VarEntry)
+}
+
+# create a new powershell runspace
+$cmd = [PowerShell]::Create($State)
 
 # add the scriptblock
-[void]$cmd.AddScript($Scriptblock.ToString())
+if ($RunAs) {
+    [void]$cmd.AddScript("`$ScriptString = @'`n$($Scriptblock.ToString())`n'@")
+    [void]$cmd.AddScript('Invoke-WithImpersonation -Credential $_Creds -ScriptString $ScriptString')
+}
+else {
+    [void]$cmd.AddScript($Scriptblock.ToString())
+}
 
 # add any user arguments (either Args OR Params, NOT both)
 if ($ArgumentList.Count -gt 0) {

@@ -14,33 +14,7 @@ function Invoke-AzCommand {
     Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'ooo'}
     # we get different streams in the output
 .EXAMPLE
-    $All = Get-AzVM ; $file = 'C:\Temp\MyScript.ps1'
-    Invoke-AzCommand $All $file
-    # we run a script file instead of a scriptblock on the remote VM
-.EXAMPLE
-    $All = Get-AzVM
-    Invoke-AzCommand $All {param($Size,$Name) "$Name - $Size"} -Param @{Name='John';Size='XL'}
-    # we pass named parameters instead of positional
-.EXAMPLE
-    # get a running Azure Linux VM (not Windows) or a Windows VM that is stopped (not running)
-    Invoke-AzCommand $LinuxVM {$env:ComputerName}
-    Invoke-AzCommand $StoppedVM {$env:ComputerName}
-    # it returns human readable error messages with all the relevant details
-.EXAMPLE
-    Invoke-AzCommand $VM {Get-Service Non-Existing-Service}
-    # it returns the actual error message from the remote VM as-if it was local
-.EXAMPLE
-    Invoke-AzCommand $VM {Get-Service -EA 0}
-    # it returns a trucated part of the output in plain text, not objects
-    # because the output was too big to be send over through Az VM Run Command.
-.EXAMPLE
-    Invoke-AzCommand $VM {'Started';Start-Sleep 30;'Finished'} -ExecutionTimeout 10
-    # it returns partial output, due to the timeout expiration
-.EXAMPLE
-    $result = Invoke-AzCommand $VM {Get-Service WinRM,'Unknown-Service'}
-    $result | select AzComputerName,AzUserName
-    $error[0] | select AzComputerName,AzUserName
-    # the returned output is enriched with the VM's name and the azure account that ran it
+    Please see the examples.md file for more use-cases and examples.
 #>
 [CmdletBinding(DefaultParameterSetName = 'ScriptBlock')]
 param (
@@ -70,10 +44,23 @@ param (
     [Parameter(Mandatory,Position=2,ParameterSetName = 'FileAndParams')]
     [hashtable]$ParameterList,
 
+    [switch]$AsJob,
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
     [int]$DeliveryTimeout  = 666,   # <-- time needed to run the Invoke-AzVMRunCommand, default 10+ minutes (ExecTime plus 1+ minute for AzVMRunCommand to reach the Azure VM)
-    [int]$ExecutionTimeout = 600    # <-- this is the time needed to run the script on the remote VM
+    [int]$ExecutionTimeout = 600,   # <-- this is the time needed to run the script on the remote VM
+    [pscredential]$Credential
 )
+
+if ($AsJob) {
+    # Remove the -AsJob parameter, leave everything else as-is
+    [void]$PSBoundParameters.Remove('AsJob')
+
+    $params = @{
+        CommandName    = $MyInvocation.MyCommand.Name
+        ParameterTable = $PSBoundParameters
+    }
+    return (Start-FunctionJob @params)
+} #if AsJob
 
 # get the user's script and arguments (if any)
 $ParamSetName = $PSCmdlet.ParameterSetName
@@ -89,14 +76,15 @@ elseif ($ParamSetName -like '*Params') {$UserArgs = @{ParameterList = $Parameter
 else                                   {$UserArgs = @{}}
 
 # assemble the script that we'll run on the remote VM
-$RemoteScript = Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
-
-# get the functions that we'll use inside the foreach parallel
-$ModuleFolder = $MyInvocation.MyCommand.Module.ModuleBase
-$ScriptToLoad = 'Invoke-RemoteScript,Initialize-AzModule,Receive-RemoteOutput,Expand-XmlString,Get-AzVMError'
-$ScriptList   = $ScriptToLoad.Split(',') | foreach {Join-Path $ModuleFolder "\Private\$_.ps1"}
+$RemoteScript = if (-not $Credential) {
+    Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
+}
+else {
+    Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout -Credential $Credential
+}
 
 # create the scriptblock that we'll run in parallel
+$Root  = $MyInvocation.MyCommand.Module.ModuleBase
 $Block = {
     $srv = $_.Name
     $rg  = $_.ResourceGroupName
@@ -105,7 +93,7 @@ $Block = {
     $dur = $using:DeliveryTimeout
 
     $VerbosePreference = $using:VerbosePreference
-    $using:ScriptList | foreach {. $_}  # <-- dot-source our helper functions
+    dir (Join-Path $using:Root Private) *.ps1 | foreach {. $_.FullName}  # <-- dot-source our functions
 
     # load the Azure modules and set the Subscription
     $ProgressStatus = 'Loading Azure modules...'

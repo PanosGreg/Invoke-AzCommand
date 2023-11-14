@@ -1,0 +1,85 @@
+
+
+New feature ideas for the Invoke-AzCommand
+------------------------------------------
+
+Ideas as of: 07-Nov-2023
+
+0) Write integration pester tests for the public function
+   Run all the functionality tests mentioned at the end of
+   the .Tests.ps1
+   
+   Also run that in a Linux box as well
+
+1) -AsJob parameter    -- DONE
+   Look at the spinner module for this
+   
+2) PSDrive with the logs
+   - Input.Script
+   - Input.Arguments
+   - Output.Results
+   - Output.Errors
+   - Timestamp
+   - TargetVMs
+   - AzUserName
+   - TotalDuration
+   - Unique ID of command
+   - Reason (for Jira tickets)
+   
+   Get an idea from AWS SSM Run Command
+   and the History of commands
+   
+   May even use SQLite for this.
+
+   Actually, this might be a whole new module on its own.
+   On the Invoke-AzCommand, just fire an event with all the relevant data (see above)
+   and then that new module, will create the PS drive, register to that queue
+   and also update the SQLite DB to persist the data.
+   
+3) PSDrive with Configuration
+   OR -AzSessionOption [AzSessionOption]
+   and then New-AzSessionOption
+   like New-PSSessionOption or New-PesterConfiguration
+   
+   And add everything in the config
+   - Serialization type: xml|json
+   - Serialization Depth
+   - Compression on/off
+   - Add Az Properties on/off
+   - Log on/off
+   
+   The idea here is, to add all options
+   that you would have as feature flags.
+   
+4) -ReferenceModule and -ReferenceFunction parameters
+   To copy and load the module(s)/function(s)
+   onto the remote machine, so the user can use them
+   inside his scriptblock.
+   Load them up in the runspace job as context.
+   
+5) Encryption of user code and args as well as returned results
+   This might need the extra Encipher-String module
+   instead of having that logic in the AzCommand module
+
+6) -Credential to run the remote command as that user   --- DONE
+   As-in spawn a process in the remote VM with RunAs
+   
+   Might need some C# code here to do the impersonation
+
+6a) If I add the credential parameter, then it makes sense to
+    also implement encryption. Since we don't want the user/pass
+    to be send in clear over the channel.
+
+7) -Reason or -Description param [optional], so user can add any context
+   on why/what he's doing.
+   Most common use-case would be to put the Jira ticket ID in that
+   param. So you can trace it back to a ticket or add the output log to that ticket.
+   
+8) -StopChef [switch] as a parameter. So the remote command
+   will stop chef scheduled task first and then execute the user's
+   code. And once done, it will re-enable chef.
+   
+   Although this is very Coupa specific setting, so not sure if
+   it makes sense to have it.
+   I may add it along with a feature flag, so you can disable it
+   and thus you won't have this param at all.
