@@ -25,16 +25,22 @@ $RemoteBlock = {
         [Alias('ConvertFrom-Base64Scriptblock')]
         [Alias('ConvertFrom-Base64Argument')]
         [Alias('ConvertFrom-Base64Credential')]
-        [CmdletBinding()] param([string]$InputString)
+        [CmdletBinding()] param([string]$InputString,[Byte[]]$Key)
         trap {return}  # <-- don't output anything if there's any error
         $text   = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($InputString))
         $Option = ($MyInvocation.InvocationName).Split('-')[1].TrimStart('Base64')
+        if ($Key) {
+            $SecStr = $text | ConvertTo-SecureString -Key $Key -ErrorAction Stop
+            $BinStr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecStr)
+            $Clear  = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BinStr)
+            $usr,$p = $Clear.Split("`n")
+            $pass   = $p | ConvertTo-SecureString -AsPlainText -Force -EA Stop
+        }
         switch ($Option) {
             Function    {$text}
             Scriptblock {[scriptblock]::Create($text)}
             Argument    {[System.Management.Automation.PSSerializer]::Deserialize($text)}
-            Credential  {$u,$p=$text.Split("`n");$s=$p|ConvertTo-SecureString -As -F -EA 1
-                         [pscredential]::new($u,$s)}
+            Credential  {[pscredential]::new($usr,$pass)}
         }
     }
 
@@ -45,7 +51,6 @@ $RemoteBlock = {
     $HelperFunction = ConvertFrom-Base64Function    '@FUNCTION@'   # <-- [string]
     $UsersCode      = ConvertFrom-Base64Scriptblock '@COMMAND@'    # <-- [scriptblock]
     $UserArgs       = ConvertFrom-Base64Argument    '@ARGUMENT@'   # <-- [object]
-    $UserCreds      = ConvertFrom-Base64Credential  '@CREDENTIAL@' # <-- [pscredential]    
 
     # helper functions to a)compress the output, b)run the background job with runspaces, c)RunAs user
     Invoke-Expression -Command $HelperFunction
@@ -54,13 +59,14 @@ $RemoteBlock = {
     if     ($InputType -eq 'WithNames') {$UserInput = @{ParameterList = $UserArgs -as [hashtable]}}
     elseif ($InputType -eq 'NoNames')   {$UserInput = @{ArgumentList  = $UserArgs}}
     elseif ($InputType -eq 'NoParams')  {$UserInput = $null}
-    
+
     # now run the remote block
     if ($UserContext -eq 'SameUser') {
         $Result = Start-RunspaceJob -Scriptblock $UsersCode -Timeout $ExecTimeout @UserInput
     }
     elseif ($UserContext -eq 'OtherUser') {
-        $Result = Start-RunspaceJob -Scriptblock $UsersCode -Timeout $ExecTimeout -RunAs $userCreds @UserInput
+        $Creds  = ConvertFrom-Base64Credential '@CREDENTIAL@' (Get-EncryptionKey FromIMDS) # <-- [pscredential]
+        $Result = Start-RunspaceJob -Scriptblock $UsersCode -Timeout $ExecTimeout -RunAs $Creds @UserInput
     }
 
     # compress the output
@@ -75,12 +81,18 @@ switch -Wildcard ($PSCmdlet.ParameterSetName) {
 }
 
 # check if there's any provided credentials
-if ($Credential) {$Context = 'OtherUser' ; $AltCreds = @{Credential = $Credential}}
-else             {$Context = 'SameUser'  ; $AltCreds = @{Credential = [pscredential]::Empty}}
+if ($Credential) {
+    $Context  = 'OtherUser'
+    $AltCreds = @{Credential = $Credential ; Key = Get-EncryptionKey}
+}
+else {
+    $Context  = 'SameUser'
+    $AltCreds = @{Credential = [pscredential]::Empty ; Key = [Byte[]]::new(32)}
+}
 
 # encode all input with Base64 encoding
 # (the user's scriptblock,helper functions,alternate credentials and any arguments given)
-$Funcs  = Get-Item Function:\Compress-XmlString,Function:\Start-RunspaceJob,Function:\Get-CompressedOutput,Function:\Invoke-WithImpersonation
+$Funcs  = Get-RemoteHelperFunction
 $FunB64 = ConvertTo-Base64String -FunctionInfo $Funcs
 $CmdB64 = ConvertTo-Base64String -ScriptBlock  $ScriptBlock
 $ArgB64 = ConvertTo-Base64String @UserArgs

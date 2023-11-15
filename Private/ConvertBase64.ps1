@@ -16,7 +16,11 @@ param (
     [hashtable]$ParameterList,
 
     [Parameter(Mandatory,Position=0,ParameterSetName = 'Credential')]
-    [pscredential]$Credential
+    [pscredential]$Credential,
+
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Credential')]
+    [ValidateCount(32,32)]
+    [Byte[]]$Key
 )
 
 if ($PSCmdlet.ParameterSetName -eq 'Function') {
@@ -26,8 +30,13 @@ if ($PSCmdlet.ParameterSetName -eq 'Function') {
     }
 }
 if ($PSCmdlet.ParameterSetName -eq 'Credential') {
-    $User = $Credential.UserName
-    $Pass = try {$Credential.GetNetworkCredential().Password} catch {$null}
+    if ($Credential -eq [pscredential]::Empty) {$Cred = ' '}
+    else {
+        $User   = $Credential.UserName
+        $Pass   = try {$Credential.GetNetworkCredential().Password} catch {$null}
+        $SecStr = ConvertTo-SecureString -String "$User`n$Pass" -AsPlainText -Force
+        $Cred   = $SecStr | ConvertFrom-SecureString -Key $Key  # <-- returns Encrypted String
+    }
 }
 
 switch ($PSCmdlet.ParameterSetName) {
@@ -35,7 +44,7 @@ switch ($PSCmdlet.ParameterSetName) {
     Scriptblock {$Text = $ScriptBlock.ToString()}
     Argument    {$Text = [System.Management.Automation.PSSerializer]::Serialize($ArgumentList)}
     Parameter   {$Text = [System.Management.Automation.PSSerializer]::Serialize($ParameterList)}
-    Credential  {$Text = "$User`n$Pass"}
+    Credential  {$Text = $Cred}
 }
 
 $byte = [Text.Encoding]::UTF8.GetBytes($Text)
@@ -59,7 +68,8 @@ function ConvertFrom-Base64String {
 [OutputType([hashtable])]    # <-- for Parameter
 [OutputType([securestring])] # <-- for Credential
 param (
-    [string]$InputString
+    [string]$InputString,
+    [Byte[]]$Key    # <-- only needed if you're using the ConvertFrom-Base64Credential
 )
 
 $byte = [Convert]::FromBase64String($InputString)
@@ -67,9 +77,11 @@ $text = [Text.Encoding]::UTF8.GetString($byte)
 
 $InputOption = ($MyInvocation.InvocationName).Split('-')[1].TrimStart('Base64')
 
-if ($InputOption -eq 'Credential') {
-    $user,$pass = $text.Split("`n")
-    $secp = $pass | ConvertTo-SecureString -AsPlainText -Force
+if ($InputOption -eq 'Credential' -and $Key) {
+    $SecStr = $text | ConvertTo-SecureString -Key $Key -ErrorAction Stop
+    $Clear  = $SecStr | ConvertFrom-SecureString -AsPlainText -ErrorAction Stop
+    $usr,$p = $Clear.Split("`n")
+    $secp   = $pass | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
 }
 
 switch ($InputOption) {
@@ -77,10 +89,15 @@ switch ($InputOption) {
     Scriptblock {$out = [scriptblock]::Create($text)}
     Argument    {$out = [System.Management.Automation.PSSerializer]::Deserialize($text)}
     Parameter   {$out = [System.Management.Automation.PSSerializer]::Deserialize($text) -as [hashtable]}
-    Credential  {$out = [pscredential]::new($user,$secp)}
+    Credential  {$out = [pscredential]::new($usr,$secp)}
     default     {Write-Warning 'Please use any of the aliases of this command';return}
 }
 
 Write-Output $out
 
 }
+
+
+## NOTE: PS5 does NOT have the -AsPlainText on the ConvertFrom-SecureString
+##       so we need to do that part using .NET classes with a Binary String
+##       on the remote code in Write-RemoteScript.

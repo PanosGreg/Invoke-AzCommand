@@ -14,7 +14,8 @@ In general I tried to simulate the functionality of `Invoke-Command` through the
 The following features are out of scope, at least for now:
 
 - no logging in the remote machine (you can do that on your own of course)
-- no encryption for input or output (I may add encryption later on)
+- no encryption for input or output (I may add proper encryption later on).  
+  Although it does encrypt any credentials provided
 - you cannot use the `$using:` scope in the scriptblock to pass local variables onto the remote Azure VM (use the `-ParameterList` or `-ArgumentList` options instead)
 
 
@@ -33,7 +34,7 @@ $All = Get-AzVM
 Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'aaa'}
 # we get different streams in the output
 ```
-<u>Please see the [**examples.md**](.\examples.md) file for more use-cases and examples.</u>
+Please see the [**examples.md**](.\examples.md) file for more use-cases and examples.
 
 ## Timeout settings
 

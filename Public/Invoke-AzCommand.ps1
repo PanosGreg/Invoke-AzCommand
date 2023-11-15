@@ -51,6 +51,10 @@ param (
     [pscredential]$Credential
 )
 
+# make sure all VMs are on the same Azure subscription
+$SameSub = Test-AzureSubscription $VM
+if (-not $SameSub) {Write-Warning 'Please make sure all VMs are on the same subscription';return}
+
 if ($AsJob) {
     # Remove the -AsJob parameter, leave everything else as-is
     [void]$PSBoundParameters.Remove('AsJob')
@@ -71,17 +75,13 @@ if ($ParamSetName -like '*File*') {
            $ScriptBlock = [scriptblock]::Create($ScriptText)}             # <-- this checks if it's a PowerShell script
     catch {throw $_}
 }
-if     ($ParamSetName -like '*Args')   {$UserArgs = @{ArgumentList  = $ArgumentList}}
-elseif ($ParamSetName -like '*Params') {$UserArgs = @{ParameterList = $ParameterList}}
-else                                   {$UserArgs = @{}}
 
 # assemble the script that we'll run on the remote VM
-$RemoteScript = if (-not $Credential) {
-    Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout
-}
-else {
-    Write-RemoteScript $ScriptBlock @UserArgs -Timeout $ExecutionTimeout -Credential $Credential
-}
+$param = @{ScriptBlock = $ScriptBlock ; Timeout = $ExecutionTimeout}
+if     ($ParamSetName -like '*Args')   {$param.Add('ArgumentList', $ArgumentList)}
+elseif ($ParamSetName -like '*Params') {$param.Add('ParameterList',$ParameterList)}
+if     ($Credential)                   {$param.Add('Credential',   $Credential)}
+$RemoteScript = Write-RemoteScript @param
 
 # create the scriptblock that we'll run in parallel
 $Root  = $MyInvocation.MyCommand.Module.ModuleBase

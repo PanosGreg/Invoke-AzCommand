@@ -4,7 +4,7 @@
 
 @{
 RootModule        = 'Invoke-AzCommand.psm1'
-ModuleVersion     = '1.4.0'
+ModuleVersion     = '1.4.1'
 GUID              = '0b242b1e-b061-49a0-914d-dc9daa4e4615'
 Author            = 'Panos Grigoriadis'
 #CompanyName       = ''
@@ -33,7 +33,10 @@ FileList          = 'readme.md',
                     'Private\Get-AzVMError.ps1',
                     'Private\Remove-Comments.ps1',
                     'Private\Start-FunctionJob.ps1',
-                    'Private\Invoke-WithImpersonation.ps1'
+                    'Private\Invoke-WithImpersonation.ps1',
+                    'Private\Test-AzureSubscription.ps1',
+                    'Private\Get-RemoteHelperFunction.ps1',
+                    'Private\Get-EncryptionKey.ps1'
 PrivateData = @{
     PSData = @{
         Tags         = 'PowerShell', 'Azure', 'Remoting'
