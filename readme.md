@@ -2,7 +2,7 @@
 
 ## Overview
 
-This PowerShell module exposes a single command, the **`Invoke-AzCommand`**,  that you can use to run PowerShell code on Windows VMs.
+This PowerShell module exposes a single command, the **`Invoke-AzCommand`**,  that you can use to run PowerShell code on Windows VMs in Azure.
 
 You'll need to have the Azure modules (_Az.Compute_ and _Az.Accounts_) and login to Azure through PowerShell for this module to work.
 
