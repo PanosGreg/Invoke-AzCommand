@@ -13,7 +13,7 @@ Specifically it supports:
 - **PowerShell Streams**  
 (like Verbose and Warning streams in your local output)
 - **Timeouts**  
-(so you don't have to wait 10 minutes or 1 hour to get an error if the command breaks)
+(so you don't have to wait 20 minutes or 1 hour to get an error if the command breaks)
 - **Multi-Threading**  
 (for parallel execution since Azure is quite slow and each command takes about ~60 seconds)
 - **Impersonation**  
