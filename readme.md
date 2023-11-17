@@ -15,7 +15,7 @@ Specifically it supports:
 - **Timeouts**  
 (so you don't have to wait 20 minutes or 1 hour to get an error if the command breaks)
 - **Multi-Threading**  
-(for parallel execution since Azure is quite slow and each command takes about ~60 seconds)
+(for parallel execution per VM since Azure is quite slow and each command takes about ~60 seconds at least)
 - **Impersonation**  
 (to _RunAs_ a different user so you can access the network since the agent runs with System by default).
 
