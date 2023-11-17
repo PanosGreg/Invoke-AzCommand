@@ -56,7 +56,7 @@ $All = Get-AzVM
 Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'aaa'}
 # we get different streams in the output
 ```
-Please see the [**examples.md**](.\examples.md) file for more use-cases and examples.
+Please see the [**examples.md**](./examples.md) file for more use-cases and examples.
 
 ## Timeout settings
 
