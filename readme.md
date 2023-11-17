@@ -9,9 +9,9 @@ You'll need to have the Azure modules (_Az.Compute_ and _Az.Accounts_) and login
 This is a wrapper around the native `Invoke-AzVMRunCommand` that adds support for a few things which improves its usefulness significantly.  
 Specifically it supports:
 - **Objects**  
-(for both input and output, so you're not getting plain strings)
+(for both input and output, so you're not getting plain strings in the output and you can also pass objects not just strings for input)
 - **PowerShell Streams**  
-(like Verbose and Warning on the output)
+(like Verbose and Warning streams in your local output)
 - **Timeouts**  
 (so you don't have to wait 10 minutes or 1 hour to get an error if the command breaks)
 - **Multi-Threading**  
