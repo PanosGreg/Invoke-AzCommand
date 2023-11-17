@@ -31,7 +31,8 @@ Invoke-AzCommand $VM {Get-Service -EA 0}
 # then it falls back to plain text (not objects) and truncates the output as needed
 
 Invoke-AzCommand $VM {'Started';Start-Sleep 30;'Finished'} -ExecutionTimeout 10
-# it returns partial output, due to the timeout expiration
+# it stops the command due to the timeout expiration
+# BUT it does return any partial output (up until the timeout limit)
 
 $results  = Invoke-AzCommand $VM {Get-Service WinRM,'Unknown-Service'}
 $results  | select AzComputerName,AzUserName
@@ -60,4 +61,5 @@ $block = {
 }
 Invoke-AzCommand $VM $block -Credential $creds
 # run the remote command as a different user that has network access to a server in the domain
+# by default the SSM Agent runs under the SYSTEM account which does not have any network access.
 ```

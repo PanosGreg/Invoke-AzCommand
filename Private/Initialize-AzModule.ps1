@@ -2,7 +2,6 @@ function Initialize-AzModule {
 [OutputType([void])]
 [CmdletBinding()]
 param (
-    #[ValidateSet('csocoupadev','csoprod','coupahost','coupadev')]
     [string]$SubscriptionID,
 
     [string[]]$Module = @('Az.Accounts','Az.Compute')

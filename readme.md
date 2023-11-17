@@ -2,22 +2,44 @@
 
 ## Overview
 
-This is a wrapper around `Invoke-AzVMRunCommand` that adds support for a few things which improves its usefulness significantly.  
-Specifically it supports objects (for both input and output), streams (like verbose and warning), timeouts and parallelism.  
-It also compresses the output to support sizes a bit larger than 4KB, it shows the remote error records onto the local machine and finally enriches the objects with the computername.
+This PowerShell module exposes a single command, the **`Invoke-AzCommand`**,  that you can use to run PowerShell code on Windows VMs.
+
+You'll need to have the Azure modules (_Az.Compute_ and _Az.Accounts_) and login to Azure through PowerShell for this module to work.
+
+This is a wrapper around the native `Invoke-AzVMRunCommand` that adds support for a few things which improves its usefulness significantly.  
+Specifically it supports:
+- **Objects**  
+(for both input and output, so you're not getting plain strings)
+- **PowerShell Streams**  
+(like Verbose and Warning on the output)
+- **Timeouts**  
+(so you don't have to wait 10 minutes or 1 hour to get an error if the command breaks)
+- **Multi-Threading**  
+(for parallel execution since Azure is quite slow and each command takes about ~60 seconds)
+- **Impersonation**  
+(to _RunAs_ a different user so you can access the network since the agent runs with System by default).
+
+It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects with the computername.
 
 In general I tried to simulate the functionality of `Invoke-Command` through the Azure run command.
 
+## Installation
 
-## Out-Of-Scope
+```PowerShell
+# clone the repo locally with git
+git clone https://github.com/PanosGreg/Invoke-AzCommand.git
 
-The following features are out of scope, at least for now:
+# or get the repo with the github tool
+gh repo clone PanosGreg/Invoke-AzCommand
 
-- no logging in the remote machine (you can do that on your own of course)
-- no encryption for input or output (I may add proper encryption later on).  
-  Although it does encrypt any credentials provided
-- you cannot use the `$using:` scope in the scriptblock to pass local variables onto the remote Azure VM (use the `-ParameterList` or `-ArgumentList` options instead)
-
+# or if you don't have any of the above, just download the zip and extract it locally
+$url = 'https://github.com/PanosGreg/Invoke-AzCommand/archive/refs/heads/master.zip'
+$zip = 'C:\Temp\Invoke-AzCommand.zip'                 # <-- this is just an example path, place it wherever you want
+[System.Net.WebClient]::new().DownloadFile($url,$file)
+Expand-Archive -Path $zip -DestinationPath C:\Temp    # <-- again this path is just an example
+```
+**This module requires PowerShell v7+ to work.**  
+So if you don't have it, you'll need to _[install it.](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)_
 
 ## Some examples
 
@@ -38,6 +60,7 @@ Please see the [**examples.md**](.\examples.md) file for more use-cases and exam
 
 ## Timeout settings
 
+The `Invoke-AzCommand` has two different parameters regarding timeouts. This is a quick clarification on what each one does.
 - **Execution Timeout**  
 Once the script reaches the remote host, then this is the time needed to run that script on that VM (but does not include the time needed to send the results back).  
 When the Execution timeout expires then the runspace job that runs on the remote host is stopped and any output up to that point is collected.
@@ -48,5 +71,16 @@ When the Delivery timeout expires then the `Invoke-AzVMRunCommand` that runs loc
 
 ## Official documentation from MS
 
+The Microsoft page for running scripts on Windows VMs through `Invoke-AzVMRunCommand` for reference. Where you can see the limitations of "Run Command".  
 [Run scripts in your Windows VM by using action Run Commands](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/run-command)
+
+## Out-Of-Scope
+
+The following features are out of scope, at least for now:
+
+- no logging in the remote machine (you can do that on your own of course)
+- no encryption on the input or output (I may add proper encryption later on).  
+  Although I do encrypt any credentials provided through the `-Credential` parameter.
+- you cannot use the `$using:` scope in the scriptblock to pass local variables onto the remote Azure VM (but you can use the `-ParameterList` or `-ArgumentList` options for that instead)
+
 

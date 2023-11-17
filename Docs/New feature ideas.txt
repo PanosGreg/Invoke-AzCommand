@@ -66,7 +66,7 @@ Ideas as of: 07-Nov-2023
    
    Might need some C# code here to do the impersonation
 
-6a) If I add the credential parameter, then it makes sense to
+6a) If I add the credential parameter, then it makes sense to   --- DONE
     also implement encryption. Since we don't want the user/pass
     to be send in clear over the channel.
 
@@ -75,11 +75,32 @@ Ideas as of: 07-Nov-2023
    Most common use-case would be to put the Jira ticket ID in that
    param. So you can trace it back to a ticket or add the output log to that ticket.
    
-8) -StopChef [switch] as a parameter. So the remote command
-   will stop chef scheduled task first and then execute the user's
-   code. And once done, it will re-enable chef.
-   
-   Although this is very Coupa specific setting, so not sure if
-   it makes sense to have it.
-   I may add it along with a feature flag, so you can disable it
-   and thus you won't have this param at all.
+8) [maybe] Add a copy functionality from local to the remote VMs
+   just like Copy-Item that can work through PSSessions, or just
+   like SSH where you can use it to copy files via SCP (secure copy)
+
+   I could do this either directly, as-in spin up a server locally
+   and then have the VM connect to that server, or vice versa (as-in
+   spin up the server on the VM and have your local connect to it, but
+   that needs the VM to be publicly available). Another way is to have
+   an intermediate. Like S3 or GitHub or Azure NAS drive or anything else.
+
+   This functionality could probably be done on a separate module perhaps.
+   So maybe not in the same module as Invoke-AzCommand but as an additional
+   module, just like the idea for the logging
+
+9) Add a PreScript (or Before) and a PostScript (or After), so the user can do
+   any needed setup and then teardown apart from his scriptblock.
+
+   The idea is very much the same just like the Before/After blocks in Pester,
+   or the Begin/End block in foreach-object, or just like the AWS SSM document
+   AWS-RunPatchBaselineWithHooks where you have a pre and a post script.
+
+   For example, in the Before block you may need to stop and disable the chef client
+   scheduled task and then on the After block enable it back again.
+
+   Similarly you may need to drain a server first (like remove it from LB forwarding
+   list or failover a DB, etc), and once you're done, undrain it.
+
+   And then keep that same Before/After and use it on many different Invoke-AzCommand scripts.
+    
