@@ -72,13 +72,54 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
         }
         It 'Runs a basic remoting command on a VM' {
             $ExtraInfo = 'run a scriptblock remotely on 1 VM, no args,objects,streams,errors or multi-threading'
-            Invoke-AzCommand $SampleVM {$env:COMPUTERNAME} | Should -Be $SampleVM.Name
+            $result = Invoke-AzCommand $SampleVM {'BasicTest'}
+            $result | Should -Be 'BasicTest'
         }
-        It 'Stops the command if the timeout expires' {
-            $block  = {'Started';Start-Sleep 30;'Finished'}
-            $result = Invoke-AzCommand $SampleVM $block -ExecutionTimeout 10
+        It 'Errors out if given an invalid VM' {
+            {Invoke-AzCommand InvalidVM {}} | Should -Throw '*Please provide a valid Azure VM object type'
         }
-    }
+        It 'Errors out if given a non-existing script file' {
+            {Invoke-AzCommand $SampleVM NonExistingScriptFile} | Should -Throw '*Cannot find path*'
+        }
+    } #Context Basic
+
+    Context 'Background Job option' -Tag AsJob {
+        BeforeAll {
+            $SampleVM = $VM | Get-Random # <-- get one random VM from the provided input
+            $job      = Invoke-AzCommand $SampleVM {'JobTest'} -AsJob
+            $result   = $job | Receive-Job -Wait
+        }
+        It 'Runs as a background job' {
+            $result | Should -Be 'JobTest'
+        }
+        It 'Prefixes the Job with "AzCmd"' {
+            $job.Name | Should -BeLike 'AzCmd*'
+        }
+    } #Context Job
+
+    Context 'Timeout functionality' -Tag Timeout {
+        BeforeAll {
+            $SampleVM = $VM | Get-Random # <-- get one random VM from the provided input
+            $block    = {'Started';Start-Sleep 30;'Finished'}
+            $result   = Invoke-AzCommand $SampleVM $block -ExecutionTimeout 10 *>&1
+        }
+        It 'Stops the command if the "Execution" timeout expires' {
+            $result[0] | Should -BeOfType System.Management.Automation.WarningRecord
+            $result[0].Message | Should -BeLike '*Execution timeout has expired*'
+        }
+        It 'Collects any partial output up to the timeout limit' {
+            $result | Should -Contain 'Started'
+            $result | Should -Not -Contain 'Finished'
+        }
+        It 'Stops the command if the "Delivery" timeout expires' {
+            $DeliveryTimout = Invoke-AzCommand $SampleVM {$env:COMPUTERNAME} -DeliveryTimeout 2 *>&1
+            $DeliveryTimout[0] | Should -BeOfType System.Management.Automation.WarningRecord
+            $DeliveryTimout.Message | Should -BeLike '*InvokeAzVMRunCommand timeout exceeded*'
+        }
+    } #Context Timeout
+
+} #Describe Invoke-AzCommand
+
 
 <#
     Context 'Functionality Tests' {}
@@ -103,9 +144,3 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
     - to check if the command will work with new PowerShell versions
     - to check if the command works when ran from Linux or Windows
 #>
-
-
-
-
-
-}

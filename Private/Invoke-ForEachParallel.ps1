@@ -128,8 +128,8 @@ $Job = $InputListWithID | ForEach-Object @params
 while ($Job.State -eq 'Running') {
     $ProgressParams.Keys | foreach {
         if (([array]$ProgressParams.$_.Keys).Count -ge 1) {
-            $params = $ProgressParams.$_
-            Write-Progress @params
+            $_params = $ProgressParams.$_
+            Write-Progress @_params
         }
     }
     # Wait to refresh to not overload gui

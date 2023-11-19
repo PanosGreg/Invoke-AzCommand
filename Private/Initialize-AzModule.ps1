@@ -9,19 +9,20 @@ param (
 
 # need to handle the verbose preference manually
 # cause Import-Module doesn't respect it when it loads the Azure modules
-$Orig = $Global:VerbosePreference
+$OrigVerb = $Global:VerbosePreference
 $Global:VerbosePreference = 'SilentlyContinue'
 
 # load the Azure modules
 $LoadedModules = (Get-Module).Name
 foreach ($Mod in $Module) {
     if ($LoadedModules -notcontains $Mod) {
-        Import-Module $Mod -Verbose:$false
+        try   {$null = Import-Module $Mod -EA Stop *>&1}
+        catch {throw $_}
     }
 }
 
 # revert back the verbose preference to what it was
-$Global:VerbosePreference = $Orig
+$Global:VerbosePreference = $OrigVerb
 
 # set the Azure subscription, this also logs in to Azure
 $ctx = Get-AzContext -RefreshContextFromTokenCache -ListAvailable:$false -Verbose:$false 3>$null

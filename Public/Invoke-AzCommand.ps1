@@ -72,7 +72,7 @@ if ($ParamSetName -like '*File*') {
     $File = Get-Item $ScriptFile -ErrorAction Stop                        # <-- this checks if the file exists
     if ($File.Length -gt 1MB) {throw "Scriptfile too big. $ScriptFile is $($File.Length) bytes"}
     try   {$ScriptText  = Get-Content $ScriptFile -Raw -ErrorAction Stop  # <-- this checks if the file is accessible
-           $ScriptBlock = [scriptblock]::Create($ScriptText)}             # <-- this checks if it's a PowerShell script
+           $ScriptBlock = [scriptblock]::Create($ScriptText)}
     catch {throw $_}
 }
 
@@ -97,7 +97,7 @@ $Block = {
 
     # load the Azure modules and set the Subscription
     $ProgressStatus = 'Loading Azure modules...'
-    Initialize-AzModule -SubscriptionID $sub -Verbose:$false
+    Initialize-AzModule -SubscriptionID $sub
 
     # run the user's script on the remote VM and show the output
     $ProgressStatus = 'Running remote command...'
