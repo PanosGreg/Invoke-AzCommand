@@ -46,8 +46,8 @@ param (
 
     [switch]$AsJob,
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
-    [int]$DeliveryTimeout  = 666,   # <-- time needed to run the Invoke-AzVMRunCommand, default 10+ minutes (ExecTime plus 1+ minute for AzVMRunCommand to reach the Azure VM)
-    [int]$ExecutionTimeout = 600,   # <-- this is the time needed to run the script on the remote VM
+    [int]$DeliveryTimeout  = 366,   # <-- time needed to run the Invoke-AzVMRunCommand, default 5+ minutes (ExecTime (5mins) plus ~1 minute for AzVMRunCommand to reach the Azure VM)
+    [int]$ExecutionTimeout = 300,   # <-- this is the time needed to run the script on the remote VM
     [pscredential]$Credential
 )
 

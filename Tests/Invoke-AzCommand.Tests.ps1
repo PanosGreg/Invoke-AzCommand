@@ -28,13 +28,21 @@ BeforeDiscovery {
     else               {$SkipAll = $false}
 }
 BeforeAll {
-    # load the module
+    # load the module to be tested (that's the SUT, system-under-test)
     Import-Module $PSScriptRoot\..\Invoke-AzCommand.psd1
+
+    # load a helper function that's used to give some additional context
+    . (Join-Path $PSScriptRoot 'Write-ExtraInfo.ps1')
+
+    # check if this Pester run used the Detailed or Diag output option
+    $ShowDetail = $______parameters.Configuration.Output.Verbosity.Value -match 'Detailed|Diagnostic'
 } # BeforeAll
 
 Describe 'Invoke-AzCommand' -Skip:$SkipAll {
 
     BeforeAll {
+        # initial remote command that I'll check a number of things against that
+        # this saves us time, so we don't have to run the remote command multiple times
         $Block = {
             param ($Message,$Service)        # <-- positional parameter with object input
             Write-Verbose 'vvv' -Verbose     # <-- Verbose stream
@@ -53,30 +61,22 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
         # - truncated output
     }
 
+    AfterEach {
+        # a simple check to show (or not) any etxra info provided for that test
+        if ($ExtraInfo -and $ShowDetail) {Write-ExtraInfo $ExtraInfo}
+    }
 
     Context 'Basic Functionality' -Tag Functionality {
         BeforeAll {
-            $DarkCyan = [char]27 + '[38;2;0;153;153m'
-            $Default  = [char]27 + '[0m'
-            $Italic   = [char]27 + '[3m'
-            $Ident    = ' '*4
-            function Write-ExtraInfo([string]$Message){
-                Write-Host "$Ident$DarkCyan┌──►$Italic$Message$Default"    
-            }
-            $ShowDetail = $______parameters.Configuration.Output.Verbosity.Value -match 'Detailed|Diagnostic'
-        }
-        AfterEach {
-            if ($ExtraInfo -and $ShowDetail) {Write-ExtraInfo $ExtraInfo}
+            $SampleVM = $VM | Get-Random # <-- get one random VM from the provided input
         }
         It 'Runs a basic remoting command on a VM' {
-            $ExtraInfo = 'run a scriptblock remotely on 1 VM, no args, no objects, no streams, no multi-threading'
-            #$true | Should -BeTrue         
-            $SampleVM = $VM | Get-Random
+            $ExtraInfo = 'run a scriptblock remotely on 1 VM, no args,objects,streams,errors or multi-threading'
             Invoke-AzCommand $SampleVM {$env:COMPUTERNAME} | Should -Be $SampleVM.Name
         }
-        It 'Runs another command' {
-            #Write-ExtraInfo 'No args, no objects, no streams'
-            $true | Should -BeTrue
+        It 'Stops the command if the timeout expires' {
+            $block  = {'Started';Start-Sleep 30;'Finished'}
+            $result = Invoke-AzCommand $SampleVM $block -ExecutionTimeout 10
         }
     }
 

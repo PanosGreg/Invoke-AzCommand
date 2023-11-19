@@ -104,3 +104,99 @@ Ideas as of: 07-Nov-2023
 
    And then keep that same Before/After and use it on many different Invoke-AzCommand scripts.
     
+10)Make the Before/After scriptblocks (see above) to be able to set on a per VM basis.
+   So that you can have different scripblocks for before and/or after for each VM.
+   For example. You could set the proxy which is different on STG, PRD or DEV.
+   Even though all of those VMs could be on the same subscription.
+   Another one is, you may want to drain the server but the drain process is different
+   based on the role, as-in if it's a web server or a db server, no matter the environment.
+   Both of those 2 use-cases can be based on the VM name, the env prefix stg/prd/dev,
+   as well as the web,db role suffix.
+   So make it possible to have different before/after scriptblocks for each VM
+
+11)Be able to have different scriptblocks that will run with different user accounts.
+   The way I handle the impersonation, it's done through a function that uses P/Invoke and
+   it runs seemlessly (unlike Start-Process for example which opens a new window).
+   So what we could do is be able to run individual script parts with different creds.
+   For example, create a .Net type @{[scriptblock]Scriptblock;[pscredential]$Credential}
+   and then have an array of that. So the scriptblocks will run in sequence on the VM
+   but each scriptblock can run under a different account.
+   For example, first you need to failover the DB, so you do that with an account that
+   has access to SQL Server, then you need to make a change in the network, so you run
+   that with a different account that has domain access, and finally let's say you need
+   to make a change on the local VM, so you can run that with the default System account.
+   In this scenario you've used 3 different accounts to do your work.
+
+12)This is the big one - Alternate data transfer modes.
+   The idea is to spin up a web server on the local machine and have the VM connect to that
+   so you can send data back without the limit from Azure VM Agent service (or the limit
+   from the AWS SSM command). Now to do that, you'll need to have a reachable IP on your
+   machine so that the server can connect to. A standard approach is to run the
+   Invoke-AzCommand from a cloud VM, and then put a Load Balancer in front of it which
+   will be front-facing and publicly available. Maybe not available to the whole internet
+   but perhaps only to the VMs of your environments.
+   The local server could be done with [HTTPListener] so that you don't have any dependencies
+   (as-in keep it simple, and don't use Pode or Universal Dashboard).
+   And then have a parameter like so: -TransferMode (withAzure|withHttpDirect).
+   Now another idea is to also give a 3rd option: withMessages
+   On that 3rd option you could use RabbitMQ on your machine and then have the RMQ client
+   (that's essentially a .dll) connect to the RAbbitMQ server. Again the RMQ service will
+   need to be reachable so the use of a front-facing Load Balancer is still needed.
+   And then have a queue, your mahcine will subscribe to that queue, and the remote VM
+   will publish to that queue.
+
+   Think what Mark Russinovich did when he made psexec. He copies the executable to the
+   remote server, creates a new service on the fly and the runs that service, so that he
+   can run the user's code under the account he needs. And once done, he unregisters the
+   service and deletes it. And all of that are done on the spot. So why not then do a
+   similar thing, in regards to the on-the-fly setup for a connection. Like spin a web
+   service, have the client conenct to it and then use that communication channel.
+
+   Another thing to consider, is you can have a Dynamic Parameter in Invoke-AzCommand
+   that checks if the TransferMode is let's say withHttpDirect, then it adds extra
+   parameters like the IP to connect to and maybe some credentials needed or API key.
+   Cause the target VM does not know where it needs to connect obviously.
+
+   And this approach will a) remove the data transfer limit and b) allow for real-time
+   data to be send back to your machine, cause now we don't have to wait for the command
+   to finish to get the results. c) we could use this to send files to the VMs as well
+   so that we don't need to use an intermediary like S3 or Azure Blob or anything else.
+   That way you can deploy things easily. So then each VM won't have to have access to the file
+   storage, but rather only your machine will need that.
+
+
+
+
+DONE
+-----
+
+1) Remote ErrorRecord re-hydration / re-creation on the local machine
+2) AsJob parameter to run the public function as a background job
+3) Fe-factor "foreach parallel with progress bars" as to remove boilerplate
+   from the public function
+4) Add option to run as a different user / impresonate a user on the remote
+   machine
+5) Encrypt credentials provided by user through the Credential parameter
+   (and obviously decrypt them remotely so they can be used)
+   Use the Azure subscription as the encryption/decryption key
+6) Add the option for the end-user to pass in either positional or named
+   parameters
+7) Remove the comments from the helper functions that I use remotely
+   to reduce the string length
+8) Add 2 extra properties on all output objects (including error records)
+9) Don't show our extra properties by default.
+10)Re-write the front-end readme to make the module more accessible.
+
+
+Priorities
+-----------
+
+Since there's so many things I can do to extend the functionality
+Here's a preliminary priority list.
+1) write pester tests. I've checked the function manually, but it's not enough.
+2) add ReferenceModule to load a local module remotely
+3) Add logging through custom PS drive. This is an external module. This is a substntial effort.
+4) Add copy functionality. This is an external module or function that will use the Invoke-AzCommand
+5) Add data channel through REST API server. This is a substantial effort.
+6) Write encryption/decryption module and have option to use it.
+   (this actually could be done with the ReferenceModule option, so user can do it on his own)

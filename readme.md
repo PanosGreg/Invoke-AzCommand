@@ -26,6 +26,9 @@ In general I tried to simulate the functionality of `Invoke-Command` through the
 ## Installation
 
 ```PowerShell
+# go to a folder where you'll place the repo
+cd C:\Temp    # <- this path is just an example 
+
 # clone the repo locally with git
 git clone https://github.com/PanosGreg/Invoke-AzCommand.git
 
@@ -37,6 +40,10 @@ $url = 'https://github.com/PanosGreg/Invoke-AzCommand/archive/refs/heads/master.
 $zip = 'C:\Temp\Invoke-AzCommand.zip'                 # <-- this is just an example path, place it wherever you want
 [System.Net.WebClient]::new().DownloadFile($url,$file)
 Expand-Archive -Path $zip -DestinationPath C:\Temp    # <-- again this path is just an example
+
+# finally load the module into your session
+Import-Module C:\Temp\Invoke-AzCommand                            # <-- you can import using just the folder name
+Import-Module C:\Temp\Invoke-AzCommand\Invoke-AzCommand.psd1      # <-- OR you can import it using the .psd1 file 
 ```
 **This module requires PowerShell v7+ to work.**  
 So if you don't have it, you'll need to _[install it.](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)_
@@ -46,14 +53,22 @@ So if you don't have it, you'll need to _[install it.](https://learn.microsoft.c
 I'm just going to copy/paste the examples I have in the public function, you can always have a look with `Get-Help Invoke-AzCommand -Examples`
 
 ```PowerShell
-Invoke-AzCommand -VM (Get-AzVM) -ScriptBlock {$PSVersionTable}
+# first make sure you're logged in to Azure
+Set-AzContext ....  # <-- put your Azure subscription name here
+$Flt = {
+    $_.StorageProfile.OsDisk.OsType -eq 'Windows' -and  # <-- filter all windows VMs
+    $_.PowerState -eq 'VM running'                      # <-- filter all running VMs
+}
+$VM = Get-AzVM -Status | where $flt   
+# obviously you can filter your list even further to only specific VMs if you want
+
+Invoke-AzCommand -VM $VM -ScriptBlock {$PSVersionTable}
 # we get an object as output
 
-Invoke-AzCommand (Get-AzVM) {param($Svc) $Svc.Name} -Arg (Get-Service WinRM)
+Invoke-AzCommand $VM {param($Svc) $Svc.Name} -Arg (Get-Service WinRM)
 # we give an object for input
 
-$All = Get-AzVM
-Invoke-AzCommand $All {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'aaa'}
+Invoke-AzCommand $VM {Write-Verbose 'vvv' -Verbose;Write-Warning 'www';Write-Output 'aaa'}
 # we get different streams in the output
 ```
 Please see the [**examples.md**](./examples.md) file for more use-cases and examples.
