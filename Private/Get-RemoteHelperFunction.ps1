@@ -10,7 +10,8 @@ param (
         'Start-RunspaceJob',
         'Get-CompressedOutput',
         'Invoke-WithImpersonation',
-        'Get-EncryptionKey'
+        'Get-EncryptionKey',
+        'Import-FormatView'
     )
 )
 $FunctionList = $FunctionName | foreach {"Function:\$_"}

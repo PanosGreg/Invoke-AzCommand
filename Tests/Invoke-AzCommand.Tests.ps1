@@ -13,13 +13,23 @@
       can work on them.
 .EXAMPLE
     $AllVM = Get-AzVM
-    $Container = New-PesterContainer -Path .\Invoke-AzCommand.Tests.ps1 -Data @{VM=$AllVM}
+    $Creds = Get-Credential
+    $Container = New-PesterContainer -Path .\Invoke-AzCommand.Tests.ps1 -Data @{VM=$AllVM;Credential=$Creds}
     Invoke-Pester -Container $Container -Output Detailed
+.EXAMPLE
+    $AllVM = Get-AzVM
+    $Creds = Get-Credential
+    $Container = New-PesterContainer -Path .\Invoke-AzCommand.Tests.ps1 -Data @{VM=$AllVM;Credential=$Creds}
+    Invoke-Pester -Container $Container -Output Detailed -Tag Input
+    # run only a small subset of the total tests that have a specific tag
 #>
 param (
     [Parameter(Mandatory)]
     [ValidateNotNull()]
-    $VM  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
+    $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
+
+    [Parameter(Mandatory)]
+    $Credential
 )
 BeforeDiscovery {
     . (Join-Path $PSScriptRoot 'Test-PesterRequirement.ps1')
@@ -39,28 +49,6 @@ BeforeAll {
 } # BeforeAll
 
 Describe 'Invoke-AzCommand' -Skip:$SkipAll {
-
-    BeforeAll {
-        # initial remote command that I'll check a number of things against that
-        # this saves us time, so we don't have to run the remote command multiple times
-        $Block = {
-            param ($Message,$Service)        # <-- positional parameter with object input
-            Write-Verbose 'vvv' -Verbose     # <-- Verbose stream
-            Write-Warning 'www'              # <-- Warning stream
-            Write-Output  'ooo'              # <-- Normal stream with plain string output
-            Write-Output $Message            # <-- plain string input
-            Get-Service $Service.Name        # <-- Object output
-            Get-Service 'Unknown-Service'    # <-- error output
-            Start-Sleep 20                   # <-- wait time to test execution timeout
-            Write-Output 'Will not be shown' # <-- this will be cut out due to timeout expiration
-        }
-        #$Result = Invoke-AzCommand $VM $Block -ExecutionTimeout 10
-        # Missing tests:
-        # - named parameters
-        # - scriptfile
-        # - truncated output
-    }
-
     AfterEach {
         # a simple check to show (or not) any etxra info provided for that test
         if ($ExtraInfo -and $ShowDetail) {Write-ExtraInfo $ExtraInfo}
@@ -80,6 +68,10 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
         }
         It 'Errors out if given a non-existing script file' {
             {Invoke-AzCommand $SampleVM NonExistingScriptFile} | Should -Throw '*Cannot find path*'
+        }
+        It 'Runs multiple remote commands in parallel' {
+            $result = Invoke-AzCommand $VM {'BasicTest'}
+            $result | Should -HaveCount $VM.Count
         }
     } #Context Basic
 
@@ -117,6 +109,67 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
             $DeliveryTimout.Message | Should -BeLike '*InvokeAzVMRunCommand timeout exceeded*'
         }
     } #Context Timeout
+
+    Context 'Input options' -Tag Input {
+        BeforeAll {
+            $SampleVM = $VM | Get-Random # <-- get one random VM from the provided input
+        }
+        It 'Accepts unnamed, positional parameters' {
+            $block  = {param($First,$Second) '{0}-{1}' -f $First,$Second}
+            $result = Invoke-AzCommand $SampleVM $block -ArgumentList 'Test1','Test2'
+            $result | Should -Be 'Test1-Test2'
+        }
+        It 'Can pass objects as parameters' {
+            $block  = {param($Svc) $Svc.Name}
+            $result = Invoke-AzCommand $SampleVM $block -ArgumentList (Get-Service WinRM)
+            $result | Should -Be 'WinRM'
+        }
+        It 'Accepts named parameters' {
+            $block  = {param($Last,$First) '{0}.{1}' -f $First,$Last}
+            $result = Invoke-AzCommand $SampleVM $block -ParameterList @{First='John';Last='Smith'}
+            $result | Should -Be 'John.Smith'
+        }
+        It 'Can use a script file instead of a scriptblock' {
+            $file   = [System.IO.Path]::GetTempFileName()
+            $code   = {(Get-Service WinRM).Name}.ToString() | Out-File $file -Force
+            $result = Invoke-AzCommand $SampleVM $file
+            $result | Should -Be 'WinRM'
+            Remove-Item $file -Force
+        }
+        It 'Can run a scriptblock as a different user on the remote VM' {
+            $block  = {[System.Security.Principal.WindowsIdentity]::GetCurrent().Name}
+            $result = Invoke-AzCommand $SampleVM $block -Credential $Credential
+            $result | Should -Be $Credential.UserName
+        }
+    } #Context Input
+
+    Context 'Output Options' -Tag Output {
+        BeforeAll {
+            $SampleVM = $VM | Get-Random # <-- get one random VM from the provided input
+        }
+        It 'Get remote errors locally' {
+            $block = {Get-Service Non-Existing-Service}
+            Invoke-AzCommand $SampleVM $block -ErrorAction SilentlyContinue -ErrorVariable err
+            $err.Exception.Message | Should -BeLike 'Cannot find any service*'
+        }
+        It 'Get remote Verbose and Warning streams locally' {
+            $block  = {Write-Verbose 'vvv' -Verbose;Write-Warning 'www'}
+            $result = Invoke-AzCommand $SampleVM $block *>&1
+            $result[0] | Should -BeOfType System.Management.Automation.VerboseRecord
+            $result[1] | Should -BeOfType System.Management.Automation.WarningRecord
+        }
+        It 'Falls back to plain string if serialized output is too big' {
+            $block  = {Get-Volume}
+            $result = Invoke-AzCommand $SampleVM $block
+            $result | Should -BeOfType String
+        }
+        It 'Adds extra properties to the output' {
+            $block  = {[pscustomobject]@{Name='test';Size=100;PSTypeName='ThatsMyType'}}
+            $result = Invoke-AzCommand $SampleVM $block
+            $result.AzComputerName | Should -Not -BeNullOrEmpty
+            $result.AzUserName     | Should -Not -BeNullOrEmpty
+        }
+    } #Context Output
 
 } #Describe Invoke-AzCommand
 

@@ -24,8 +24,10 @@ $Message = "$Orange***Output was$Yellow too long$Orange, so it's shown as plain 
 # fallback to plain text instead of serialized objects if too big
 $Text = [System.Text.StringBuilder]::new()
 if ($out.Length -gt $LimitBytes) {
+    Import-FormatView   # <-- load some formatters to show the object with a known view
+    $InputString = $InputObject | Out-String -Width 120
     [void]$Text.AppendLine($Message)
-    [void]$Text.Append(($InputObject | Out-String -Width 120))
+    [void]$Text.Append($InputString)
     $out = Compress-XmlString $Text.ToString()
     $CompressionCount++
 }

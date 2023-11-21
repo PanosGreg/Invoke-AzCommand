@@ -36,7 +36,8 @@ FileList          = 'readme.md',
                     'Private\Invoke-WithImpersonation.ps1',
                     'Private\Test-AzureSubscription.ps1',
                     'Private\Get-RemoteHelperFunction.ps1',
-                    'Private\Get-EncryptionKey.ps1'
+                    'Private\Get-EncryptionKey.ps1',
+                    'Private\Import-FormatView.ps1'
 PrivateData = @{
     PSData = @{
         Tags         = 'PowerShell', 'Azure', 'Remoting'
