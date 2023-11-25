@@ -6,22 +6,32 @@ This PowerShell module exposes a single command, the **`Invoke-AzCommand`**,  th
 
 You'll need to have the Azure modules (_Az.Compute_ and _Az.Accounts_) and login to Azure through PowerShell for this module to work.
 
+## Idea
+
+The native `Invoke-AzVMRunCommand` from Microsoft pretty much sucks.  
+The company that gave us **Invoke-Command** and **PowerShell Remoting** does not adhere to the same standards when it comes to remote execution in Azure, even through PowerShell nonetheless. I realized there's no alternative out there that does what I want to do. So I made `Invoke-AzCommand` to fix the gap.
+
+There should be a remote execution method on Azure VMs through PowerShell that's easy-to-use, simple, and supports objects, streams and multi-threading at the very least. Now there is.
+
+
+## Functionality
+
 This is a wrapper around the native `Invoke-AzVMRunCommand` that adds support for a few things which improves its usefulness significantly.  
 Specifically it supports:
 - **Objects**  
-(for both input and output, so you're not getting plain strings in the output and you can also pass objects not just strings for input)
+(for both input and output, so you're not getting plain strings in the output and you can also pass objects for input, not just strings)
 - **PowerShell Streams**  
-(like Verbose and Warning streams in your local output)
+(like Verbose and Warning streams from the remote code into your local output)
 - **Timeouts**  
-(so you don't have to wait 20 minutes or 1 hour to get an error if the command breaks)
+(so you don't have to wait 10 minutes or 1 hour to get an error if the command breaks)
 - **Multi-Threading**  
-(for parallel execution per VM since Azure is quite slow and each command takes about ~60 seconds at least)
+(for parallel execution per VM since Azure is quite slow and each command takes about ~60 seconds)
 - **Impersonation**  
-(to _RunAs_ a different user so you can access the network since the agent runs with System by default).
+(to _RunAs_ a different user so you can access network recources since the agent service runs with _System_ by default).
 
-It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects with the computername.
+It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects extra properties like the Azure computername and username.
 
-In general I tried to simulate the functionality of `Invoke-Command` through the Azure run command.
+In general I tried to simulate the functionality of `Invoke-Command` as best as I could, through the Azure run command.
 
 ## Installation
 
@@ -86,7 +96,7 @@ When the Delivery timeout expires then the `Invoke-AzVMRunCommand` that runs loc
 
 ## Official documentation from MS
 
-The Microsoft page for running scripts on Windows VMs through `Invoke-AzVMRunCommand` for reference. Where you can see the limitations of "Run Command".  
+The Microsoft page for running scripts on Windows VMs through `Invoke-AzVMRunCommand` for reference. Where you can see the limitations of "Run Command", like the 4KB output limit and the 4MB input limit.  
 [Run scripts in your Windows VM by using action Run Commands](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/run-command)
 
 ## Out-Of-Scope
@@ -94,8 +104,11 @@ The Microsoft page for running scripts on Windows VMs through `Invoke-AzVMRunCom
 The following features are out of scope, at least for now:
 
 - no logging in the remote machine (you can do that on your own of course)
-- no encryption on the input or output (I may add proper encryption later on).  
+- no encryption in the input or output (I may add proper encryption later on).  
   Although I do encrypt any credentials provided through the `-Credential` parameter.
-- you cannot use the `$using:` scope in the scriptblock to pass local variables onto the remote Azure VM (but you can use the `-ParameterList` or `-ArgumentList` options for that instead)
+- you cannot use the `$using:` scope in the scriptblock to pass local variables onto the remote Azure VM (although you can use the `-ParameterList` or `-ArgumentList` options for that instead)
 
+## TODO
+
+You can have a look at the `"\Docs\New Feature Ideas.txt"` if you want to see what I'm thinking about this module.
 
