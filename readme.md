@@ -16,12 +16,12 @@ There should be a remote execution method on Azure VMs through PowerShell that's
 
 ## Functionality
 
-This is a wrapper around the native `Invoke-AzVMRunCommand` that adds support for a few things which improves its usefulness significantly.  
+This is a wrapper around the native `Invoke-AzVMRunCommand` that adds support for a few key areas which improves its usefulness significantly.  
 Specifically it supports:
 - **Objects**  
 (for both input and output, so you're not getting plain strings in the output and you can also pass objects for input, not just strings)
 - **PowerShell Streams**  
-(like Verbose and Warning streams from the remote code into your local output)
+(like Verbose, Warning and Error streams from the remote code into your local output)
 - **Timeouts**  
 (so you don't have to wait 10 minutes or 1 hour to get an error if the command breaks)
 - **Multi-Threading**  
@@ -32,6 +32,10 @@ Specifically it supports:
 It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects extra properties like the Azure computername and username.
 
 In general I tried to simulate the functionality of `Invoke-Command` as best as I could, through the Azure run command.
+
+## Disclaimer
+
+I know that MS has recently introduced the `Get-AzVMRunCommand` and also the `Set-AzVMRunCommand`, but unfortunately these lack a lot of needed functionality as well. So it wasn't the answer to the problem after all.
 
 ## Installation
 
