@@ -40,6 +40,10 @@ Function Invoke-WithImpersonation {
 .NOTES
     Starting a new process in the scriptblock will run as the original user and not the user supplied by -Credential.
     Use 'Start-Process' with -Credential to create a new process as another user.
+
+    I need to thank Jordan Borean for his great work on this function.
+    The actual source for this is here: https://gist.github.com/jborean93/3c148df03545023c671ddefb2d2b5ffc
+    His C# mastery is quite remarkable.
 #>
 [CmdletBinding(DefaultParameterSetName='Block')]
 param (

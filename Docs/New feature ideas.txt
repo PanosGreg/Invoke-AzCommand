@@ -5,14 +5,14 @@ New feature ideas for the Invoke-AzCommand
 
 Ideas as of: 07-Nov-2023
 
-0) Write integration pester tests for the public function
-   Run all the functionality tests mentioned at the end of
-   the .Tests.ps1
+0) - Write integration pester tests for the public function   --- DONE
+     Run all the functionality tests mentioned at the end of
+     the .Tests.ps1
    
-   Also run that in a Linux box as well
+   - Also run that in a Linux box as well
 
 1) -AsJob parameter    -- DONE
-   Look at the spinner module for this
+   (Look at the spinner module for this)
    
 2) PSDrive with the logs
    - Input.Script
@@ -46,10 +46,11 @@ Ideas as of: 07-Nov-2023
    - Serialization Depth
    - Compression on/off
    - Add Az Properties on/off
-   - Log on/off
+   - Format files to load by default for out-string (see Get-CompressionOutput)
+   - Default Progress status message
    
    The idea here is, to add all options
-   that you would have as feature flags.
+   that you would have as ** feature flags **
    
 4) -ReferenceModule and -ReferenceFunction parameters
    To copy and load the module(s)/function(s)
@@ -64,7 +65,9 @@ Ideas as of: 07-Nov-2023
 6) -Credential to run the remote command as that user   --- DONE
    As-in spawn a process in the remote VM with RunAs
    
-   Might need some C# code here to do the impersonation
+   I need to thank Jordan Borean for his great work on this function.
+   The actual source for this is here: https://gist.github.com/jborean93/3c148df03545023c671ddefb2d2b5ffc
+   His C# mastery is quite remarkable.
 
 6a) If I add the credential parameter, then it makes sense to   --- DONE
     also implement encryption. Since we don't want the user/pass
@@ -193,10 +196,9 @@ Priorities
 
 Since there's so many things I can do to extend the functionality
 Here's a preliminary priority list.
-1) write pester tests. I've checked the function manually, but it's not enough.
-2) add ReferenceModule to load a local module remotely
-3) Add logging through custom PS drive. This is an external module. This is a substntial effort.
-4) Add copy functionality. This is an external module or function that will use the Invoke-AzCommand
-5) Add data channel through REST API server. This is a substantial effort.
-6) Write encryption/decryption module and have option to use it.
+1) add ReferenceModule to load a local module remotely (since we have a 4MB limit on input, which is large enough)
+2) Add logging through custom PS drive. This should be an external module. This is a substantial effort.
+3) Add copy functionality. This is an external module or function that will use the Invoke-AzCommand (dogfooding)
+4) Add data channel through REST API server. This is a substantial effort.
+5) Write encryption/decryption module and have option to use it.
    (this actually could be done with the ReferenceModule option, so user can do it on his own)
