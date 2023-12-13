@@ -20,7 +20,9 @@ param (
     [hashtable]$ParameterList,
 
     [int]$Timeout = 600, # <-- remote execution timeout period, default is 10 minutes (600 seconds)
-    [pscredential]$Credential
+    [pscredential]$Credential,
+
+    [string]$TemplateFile = "$PSScriptRoot\..\Script\RemoteScript.ps1"
 )
 
 # check if there's any user arguments
@@ -49,8 +51,7 @@ $ArgB64 = ConvertTo-Base64String @UserArgs
 $CreB64 = ConvertTo-Base64String @AltCreds
 
 # start building the remote command string
-$Root = $MyInvocation.MyCommand.Module.ModuleBase
-$RemoteBlock = Get-Content -Path (Join-Path $Root Script RemoteScript.ps1) -Raw
+$RemoteBlock = Get-Content -Path $TemplateFile -Raw
 $SB = [System.Text.StringBuilder]::new($RemoteBlock)
 
 # replace placeholders with the equivalent Base64 strings
