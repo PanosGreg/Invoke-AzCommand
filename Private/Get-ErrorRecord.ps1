@@ -53,7 +53,12 @@ $msg  = $Messages -join "`n"
 $cat  = [ErrorCategory]$ErrorObject.ErrorCategory_Category
 $id   = $ErrorObject.FullyQualifiedErrorId
 $obj  = $ErrorObject.TargetObject
-$type = $ErrorObject.Exception.pstypenames[0] -replace '^Deserialized\.' -as [type]
+
+# try to find the public type of the exception
+foreach ($ErrorType in $ErrorObject.Exception.pstypenames) {
+    $type = $ErrorType -replace '^Deserialized\.' -as [type]
+    if ($null -ne $type) {break}
+}
 $exc  = $type::new($msg)
 $rec  = [ErrorRecord]::new($exc,$id,$cat,$obj)
 $rec.CategoryInfo.Activity = $ErrorObject.ErrorCategory_Activity

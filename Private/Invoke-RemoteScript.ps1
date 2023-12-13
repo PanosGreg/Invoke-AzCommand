@@ -1,7 +1,7 @@
 function Invoke-RemoteScript {
 <#
 .SYNOPSIS
-    It assembles the scriptblock (as a string) that will run on the remote VM
+    It runs the native Az command Invoke-AzVMRunCommand that runs the remote script onto the Azure VM
 #>
 [CmdletBinding()]
 param (

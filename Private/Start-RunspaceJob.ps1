@@ -19,30 +19,42 @@ $State = [Runspaces.InitialSessionState]::CreateDefault()
 # add the required context to run as a different user
 if ($RunAs) {
     $MyFunc   = Get-Item Function:\Invoke-WithImpersonation -ErrorAction Stop
-    $VarEntry = [Runspaces.SessionStateVariableEntry]::new('_Creds',$RunAs,$null)
     $FunEntry = [Runspaces.SessionStateFunctionEntry]::new($MyFunc.Name,$MyFunc.Definition)
     [void]$State.Commands.Add($FunEntry)
-    [void]$State.Variables.Add($VarEntry)
+
+    $VarEntry1 = [Runspaces.SessionStateVariableEntry]::new('_Creds',$RunAs,$null)
+    $VarEntry2 = [Runspaces.SessionStateVariableEntry]::new('_UserBlock',$Scriptblock,$null)
+    [void]$State.Variables.Add($VarEntry1)
+    [void]$State.Variables.Add($VarEntry2)
+
+    [void]$PSBoundParameters.Remove('Scriptblock')
+    [void]$PSBoundParameters.Remove('RunAs')
+    [void]$PSBoundParameters.Remove('Timeout')
+    
+    # so now the $PSBoundParameters is either empty or
+    # it's a hashtable that has a single Key which is either ArgumentList or ParameterList
+    $VarEntry3 = [Runspaces.SessionStateVariableEntry]::new('_UserArgs',$PSBoundParameters,$null)
+    [void]$State.Variables.Add($VarEntry3)
 }
 
 # create a new powershell runspace
 $cmd = [PowerShell]::Create($State)
 
-# add the scriptblock
+# add the scriptblock & any arguments
 if ($RunAs) {
-    [void]$cmd.AddScript("`$ScriptString = @'`n$($Scriptblock.ToString())`n'@")
-    [void]$cmd.AddScript('Invoke-WithImpersonation -Credential $_Creds -ScriptString $ScriptString')
+    [void]$cmd.AddScript('Invoke-WithImpersonation -ScriptBlock $_UserBlock -Credential $_Creds @_UserArgs')
 }
 else {
     [void]$cmd.AddScript($Scriptblock.ToString())
-}
 
-# add any user arguments (either Args OR Params, NOT both)
-if ($ArgumentList.Count -gt 0) {
-    $ArgumentList | foreach {[void]$cmd.AddArgument($_)}
-}
-elseif ($ParameterList.Keys.Count -gt 0) {
-    $ParameterList.GetEnumerator() | foreach {[void]$cmd.AddParameter($_.Key,$_.Value)}
+    # add user's parameters (can add args/params only after you add a script first)
+    if ($ArgumentList.Count -gt 0) {
+        $ArgumentList | foreach {[void]$cmd.AddArgument($_)}
+    }
+    elseif ($ParameterList.Keys.Count -gt 0) {
+        $ParameterList.GetEnumerator() | foreach {[void]$cmd.AddParameter($_.Key,$_.Value)}
+    }
+
 }
 
 # get all streams as part of the normal output, not separately

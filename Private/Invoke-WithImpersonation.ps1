@@ -53,8 +53,13 @@ param (
     [Parameter(Mandatory=$true,Position=0,ParameterSetName='String')]
     [String]$ScriptString,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$true,Position=1)]
     [PSCredential]$Credential,
+
+    [Parameter(Position=2)]
+    [object[]]$ArgumentList,
+
+    [hashtable]$ParameterList,
 
     [ValidateSet('Batch', 'Interactive', 'Network', 'NetworkCleartext', 'NewCredential', 'Service')]
     [String]$LogonType = 'Interactive'
@@ -133,7 +138,9 @@ try {
     [PInvoke.NativeMethods]::ImpersonateLoggedOnUser($token)
         
     try {
-        &$ScriptBlock
+        if     ($ArgumentList.Count -gt 0)       {$ScriptBlock.Invoke($ArgumentList)}
+        elseif ($ParameterList.Keys.Count -gt 0) {& $ScriptBlock @ParameterList}
+        else                                     {& $ScriptBlock}
     }
     finally {
         $null = [PInvoke.NativeMethods]::RevertToSelf()

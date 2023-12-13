@@ -4,7 +4,7 @@
 
 @{
 RootModule        = 'Invoke-AzCommand.psm1'
-ModuleVersion     = '1.4.1'
+ModuleVersion     = '1.4.2'
 GUID              = '0b242b1e-b061-49a0-914d-dc9daa4e4615'
 Author            = 'Panos Grigoriadis'
 #CompanyName       = ''
@@ -37,7 +37,8 @@ FileList          = 'readme.md',
                     'Private\Test-AzureSubscription.ps1',
                     'Private\Get-RemoteHelperFunction.ps1',
                     'Private\Get-EncryptionKey.ps1',
-                    'Private\Import-FormatView.ps1'
+                    'Private\Import-FormatView.ps1',
+                    'Script\RemoteScript.ps1'
 PrivateData = @{
     PSData = @{
         Tags         = 'PowerShell', 'Azure', 'Remoting'

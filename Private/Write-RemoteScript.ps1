@@ -1,4 +1,8 @@
 function Write-RemoteScript {
+<#
+.SYNOPSIS
+    It assembles the scriptblock (as a string) that will run on the remote VM
+#>
 [OutputType([string])]
 [CmdletBinding(DefaultParameterSetName = 'Scriptblock')]
 param (
