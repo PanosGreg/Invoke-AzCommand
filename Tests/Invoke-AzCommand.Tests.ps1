@@ -173,6 +173,12 @@ Describe 'Invoke-AzCommand' -Skip:$SkipAll {
 
 } #Describe Invoke-AzCommand
 
+# UPDATE: 1-Jan-2024
+# Need to add tests for storage container output option
+# with single contianer for all VMs or individual container per VM
+
+
+
 
 <#
     Context 'Functionality Tests' {}

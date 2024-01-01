@@ -27,33 +27,85 @@ param (
     $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
 
     [Parameter(Mandatory,Position=1,ParameterSetName = 'ScriptBlock')]
-    [Parameter(Mandatory,Position=1,ParameterSetName = 'BlockAndArgs')]
-    [Parameter(Mandatory,Position=1,ParameterSetName = 'BlockAndParams')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Args')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Params')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Container')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_ContainerPerVM')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Args_Container')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Params_Container')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Args_ContainerPerVM')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Params_ContainerPerVM')]
     [scriptblock]$ScriptBlock,
 
     [Parameter(Mandatory,Position=1,ParameterSetName = 'ScriptFile')]
-    [Parameter(Mandatory,Position=1,ParameterSetName = 'FileAndArgs')]
-    [Parameter(Mandatory,Position=1,ParameterSetName = 'FileAndParams')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Args')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Params')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Container')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_ContainerPerVM')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Args_Container')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Params_Container')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Args_ContainerPerVM')]
+    [Parameter(Mandatory,Position=1,ParameterSetName = 'File_Params_ContainerPerVM')]
     [string]$ScriptFile,
 
-    [Parameter(Mandatory,Position=2,ParameterSetName = 'BlockAndArgs')]
-    [Parameter(Mandatory,Position=2,ParameterSetName = 'FileAndArgs')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'File_Args')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'Block_Args')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'File_Args_Container')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'Block_Args_Container')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'File_Args_ContainerPerVM')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'Block_Args_ContainerPerVM')]
     [object[]]$ArgumentList,
 
-    [Parameter(Mandatory,Position=2,ParameterSetName = 'BlockAndParams')]
-    [Parameter(Mandatory,Position=2,ParameterSetName = 'FileAndParams')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'File_Params')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'Block_Params')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'File_Params_Container')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'Block_Params_Container')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'File_Params_ContainerPerVM')]
+    [Parameter(Mandatory,Position=2,ParameterSetName = 'Block_Params_ContainerPerVM')]
     [hashtable]$ParameterList,
+
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'File_Container')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'Block_Container')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'File_Args_Container')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'Block_Args_Container')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'File_Params_Container')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'Block_Params_Container')]
+    [ValidateScript({
+        $_.GetType().FullName -like '*Storage.ResourceModel.AzureStorageContainer'},
+        ErrorMessage = 'Please provide a valid Azure Storage Container object'
+    )]                  # <-- checks for [Microsoft.WindowsAzure.Commands.Common.Storage.ResourceModel.AzureStorageContainer]
+    $StorageContainer,  #     without forcing the user to have the Az.Storage module loaded beforehand if he won't use this option
+
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'File_ContainerPerVM')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'Block_ContainerPerVM')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'File_Args_ContainerPerVM')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'Block_Args_ContainerPerVM')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'File_Params_ContainerPerVM')]
+    [Parameter(Mandatory,Position=3,ParameterSetName = 'Block_Params_ContainerPerVM')]
+    [switch]$UseContainerPerVM,
 
     [switch]$AsJob,
     [int]$ThrottleLimit    = 10,    # <-- maximum number of parallel threads used during execution, default is 10
-    [int]$DeliveryTimeout  = 366,   # <-- time needed to run the Invoke-AzVMRunCommand, default 5+ minutes (ExecTime (5mins) plus ~1 minute for AzVMRunCommand to reach the Azure VM)
+    [int]$DeliveryTimeout  = 366,   # <-- time needed to run the Invoke-AzVMRunCommand, default is 5 minutes (ExecTime (5mins) plus ~1 minute for AzVMRunCommand to reach the Azure VM)
     [int]$ExecutionTimeout = 300,   # <-- this is the time needed to run the script on the remote VM
     [pscredential]$Credential
 )
+$ParamSetName = $PSCmdlet.ParameterSetName
 
 # make sure all VMs are on the same Azure subscription
 $SameSub = Test-AzureSubscription $VM
 if (-not $SameSub) {Write-Warning 'Please make sure all VMs are on the same subscription';return}
+
+# make sure the StorageContainer property exists
+if ($ParamSetName -like '*ContainerPerVM*') {
+    $Type = 'Microsoft.WindowsAzure.Commands.Common.Storage.ResourceModel.AzureStorageContainer'
+    $ExpectedProperty = Test-ExpectedProperty $VM StorageContainer $Type -Verbose
+    if (-not $ExpectedProperty) {
+        Write-Warning 'When using "UseContainerPerVM" switch, please add the "StorageContainer" property on all VMs like so:'
+        Write-Warning '$VM | Add-Member -NotePropertyMembers @{StorageContainer=$StorageContainer}'
+        return
+    }
+}
 
 if ($AsJob) {
     # Remove the -AsJob parameter, leave everything else as-is
@@ -67,7 +119,6 @@ if ($AsJob) {
 } #if AsJob
 
 # get the user's script and arguments (if any)
-$ParamSetName = $PSCmdlet.ParameterSetName
 if ($ParamSetName -like '*File*') {
     $File = Get-Item $ScriptFile -ErrorAction Stop                        # <-- this checks if the file exists
     if ($File.Length -gt 1MB) {throw "Scriptfile too big. $ScriptFile is $($File.Length) bytes"}
@@ -77,23 +128,31 @@ if ($ParamSetName -like '*File*') {
 }
 
 # assemble the script that we'll run on the remote VM
-$param = @{ScriptBlock = $ScriptBlock ; Timeout = $ExecutionTimeout}
-if     ($ParamSetName -like '*Args')   {$param.Add('ArgumentList', $ArgumentList)}
-elseif ($ParamSetName -like '*Params') {$param.Add('ParameterList',$ParameterList)}
-if     ($Credential)                   {$param.Add('Credential',   $Credential)}
+$CmdId = (New-Guid).Guid.Substring(9,14)
+$param = @{ScriptBlock = $ScriptBlock ; Timeout = $ExecutionTimeout ; CommandID = $CmdId}
+if     ($ParamSetName -like '*Args*')   {$param.Add('ArgumentList',    $ArgumentList)}
+elseif ($ParamSetName -like '*Params*') {$param.Add('ParameterList',   $ParameterList)}
+if     ($Credential)                    {$param.Add('Credential',      $Credential)}
 $RemoteScript = Write-RemoteScript @param
 
 # create the scriptblock that we'll run in parallel
-$Root  = $MyInvocation.MyCommand.Module.ModuleBase
+$Funcs = dir $MyInvocation.MyCommand.Module.FileList | where Directory -like *Private
 $Block = {
-    $srv = $_.Name
-    $rg  = $_.ResourceGroupName
-    $sub = [regex]::Match($_.Id,'^\/subscriptions\/([0-9|a-f|-]{36})\/').Groups[1].Value
-    $scr = $using:RemoteScript
-    $dur = $using:DeliveryTimeout
+    $vm  = $_
+    $sub = [regex]::Match($vm.Id,'^\/subscriptions\/([0-9|a-f|-]{36})\/').Groups[1].Value
 
+    # change the container details, if we output to Azure Storage
+    $SB = [System.Text.StringBuilder]::new($using:RemoteScript)
+    if ($using:ParamSetName -like '*Container*') {
+        $OutTo = 'StorageContainer'
+        [void]$SB.Replace('@STORAGE@',  $vm.StorageContainer.Context.StorageAccountName)
+        [void]$SB.Replace('@CONTAINER@',$vm.StorageContainer.Name)
+    }
+    else {$OutTo = 'InvokeCommand'}
+    [void]$SB.Replace('@OUTPUT@',$OutTo)
+    
     $VerbosePreference = $using:VerbosePreference
-    dir (Join-Path $using:Root Private) *.ps1 | foreach {. $_.FullName}  # <-- dot-source our functions
+    dir $using:Funcs | foreach {. $_.FullName} # <-- dot-source our functions
 
     # load the Azure modules and set the Subscription
     $ProgressStatus = 'Loading Azure modules...'
@@ -101,11 +160,21 @@ $Block = {
 
     # run the user's script on the remote VM and show the output
     $ProgressStatus = 'Running remote command...'
-    Invoke-RemoteScript -VMName $srv -RGName $rg -ScriptString $scr -Timeout $dur
+    Invoke-RemoteScript -VM $vm -ScriptString $SB.ToString() -Timeout $using:DeliveryTimeout
 }
 
-# finally run the script and show the results
+# add the storage container details on each VM object
+if ($ParamSetName -like '*Container') {
+    $VM | Add-Member -NotePropertyMembers @{StorageContainer=$StorageContainer} -Force
+}  # NOTE: this will change the user's input object, so we'll need to remove the property once we're done
+
+# run the script and get the results
 $out = Invoke-ForEachParallel $VM $Block Name $ThrottleLimit
-$out | foreach {Receive-RemoteOutput $_.Output $_.VMName}
+$out | foreach {Receive-RemoteOutput $_.Output $_.VM}
+
+# revert back the change to the user's input object
+if ($ParamSetName -like '*Container') {
+    $VM | foreach {$_.psobject.Properties.Remove('StorageContainer')}
+}
 
 }

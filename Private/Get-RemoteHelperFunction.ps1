@@ -11,7 +11,9 @@ param (
         'Get-CompressedOutput',
         'Invoke-WithImpersonation',
         'Get-EncryptionKey',
-        'Import-FormatView'
+        'Import-FormatView',
+        'Test-AzureStorage',
+        'Write-AzureOutput'
     )
 )
 $FunctionList = $FunctionName | foreach {"Function:\$_"}

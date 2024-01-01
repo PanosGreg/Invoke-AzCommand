@@ -60,7 +60,7 @@ else {
 # get all streams as part of the normal output, not separately
 $cmd.Commands.Commands.MergeMyResults('All','Output')
 
-$InOut = [System.Management.Automation.PSDataCollection[object]]::new()
+$InOut = [PSDataCollection[object]]::new()
 $Async = $cmd.BeginInvoke($InOut,$InOut)
 
 if ($Timeout) {
@@ -79,11 +79,12 @@ if ($Timeout) {
     }
 }
 
-try   {$cmd.EndInvoke($Async)}   # <-- this will wait as long as needed for the script to finish
+try   {[void]$cmd.EndInvoke($Async)}   # <-- this will wait as long as needed for the script to finish
 catch {$_.Exception.InnerException.ErrorRecord}
 
 $cmd.Dispose()
-Remove-Variable cmd -Verbose:$false
-
 Write-Output $InOut
 }
+
+#  NOTE: the .EndInvoke() does actually output $null, which is caught by the caller of the function.
+#        So you have to silence it via out-null or use [void].

@@ -1,0 +1,30 @@
+
+
+
+Q: Why do we need all of the VMs in the input list to be on the same Azure subscription ?
+A: Because within ForEach -Parallel, the Set-AzContext will then need to change into different
+   subscriptions and during testing I found that didn't work. Because that way we are changing
+   subscriptions in parallel at the same time.
+
+Q: Can we pass a Scriptblock variable through the $using: scope into ForEach -Parallel ?
+A: Nope we can't, the ForEach -Parallel does not support scriptblock variables through the $using: scope.
+   For reference, this is the error message that you get if you try to do this, as of PS 7.4.0
+   ForEach-Object: A ForEach-Object -Parallel using variable cannot be a script block.
+   Passed-in script block variables are not supported with ForEach-Object -Parallel,
+   and can result in undefined behavior.
+
+Q: Why don't we assemble the remote script text inside the ForEach parallel block ?
+   That way, you'd get a script for each VM individually.
+A: That would be indeed handy, but if the user gives an argument or parameter that is a scriptblock,
+   then we won't be able to pass it in the parallel block. See the above question on that.
+   Hence why we have to assemble it outside of the parallel block unfortunately.
+   Even though that would make the code cleaner, because I would reduce some bolerplate from the
+   public function and move it in the Write-RemoteScript.
+
+Q: We are adding a property to the user's input list of VMs, which means the user's variable
+   will change outside of the public function. Why are we messing with the user's things.
+A: Because the only way to actually make a real copy of a complex object is to serialize it.
+   And since the VM object is pretty complex (and deep), I didn't want to go that route.
+   That's why I opted to add a property and then remove it. Admittedly I need to add some checks
+   in the code, in case the user has such custom property into the object already, so I would
+   need to save its value temporarily before replacing it.

@@ -29,8 +29,11 @@ $UserContext    = '@CONTEXT@'
 $HelperFunction = ConvertFrom-Base64Function    '@FUNCTION@'   # <-- [string]
 $UsersCode      = ConvertFrom-Base64Scriptblock '@COMMAND@'    # <-- [scriptblock]
 $UserArgs       = ConvertFrom-Base64Argument    '@ARGUMENT@'   # <-- [object]
+$OutputTo       = '@OUTPUT@'
+$CommandID      = '@COMMANDID@'
 
-# helper functions to a)compress the output, b)run the background job with runspaces, c)RunAs user
+# helper functions to a)compress the output, b)run the background job with runspaces,
+# c)RunAs user, d)check Azure requirements, e)send results to Azure
 Invoke-Expression -Command $HelperFunction
 
 # collect any user arguments
@@ -47,5 +50,16 @@ elseif ($UserContext -eq 'OtherUser') {
     $Result = Start-RunspaceJob -Scriptblock $UsersCode -Timeout $ExecTimeout -RunAs $Creds @UserInput
 }
 
-# compress the output
-Write-Output (Get-CompressedOutput $Result)
+# finally output either directly or through Azure Storage
+If ($OutputTo -eq 'StorageContainer') {
+    $params = @{
+        InputObject   = $Result
+        AccountName   = '@STORAGE@'
+        ContainerName = '@CONTAINER@'
+        CommandID     = $CommandID
+    }
+    Write-AzureOutput @params
+}
+elseif ($OutputTo -eq 'InvokeCommand') {
+    Write-Output (Get-CompressedOutput $Result)  # <-- compress the output
+}

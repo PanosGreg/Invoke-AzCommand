@@ -8,15 +8,26 @@ param (
     [Parameter(Mandatory)]
     [string]$ScriptString,
 
-    [Alias('ResourceGroupName')]
-    [Parameter(Mandatory)]
-    [string]$RGName,
+    [Parameter(Mandatory,Position=0)]
+    [ValidateScript({
+        $Chk = $_ | foreach {$_.GetType().Name -match 'PSVirtualMachine(List|ListStatus)?$'}
+        $Chk -notcontains $false},
+        ErrorMessage = 'Please provide a valid Azure VM object type'
+    )]
+    $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
 
-    [Alias('ComputerName')]
-    [string]$VMName,
+    #[Alias('ResourceGroupName')]
+    #[Parameter(Mandatory)]
+    #[string]$RGName,
+
+    #[Alias('ComputerName')]
+    #[string]$VMName,
 
     [int]$Timeout = 180  # <-- default 3 minutes
 )
+
+$VMName = $VM.Name
+$RgName = $VM.ResourceGroupName
 
 # helper function for error logging
 function Pre {"`r[{0} {1}]" -f (Get-Date -F 'HH:mm:ss'),$VMName.ToUpper()}
@@ -81,7 +92,7 @@ if ([bool]$StdErr) {
 # show the output
 if ([bool]$StdOut) {
     [pscustomobject] @{
-        VMName = $VMName
+        VM     = $VM
         Output = $StdOut  # <-- base64 compressed string 
     }
 }

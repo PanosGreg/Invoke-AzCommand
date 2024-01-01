@@ -4,13 +4,14 @@
 
 @{
 RootModule        = 'Invoke-AzCommand.psm1'
-ModuleVersion     = '1.4.2'
+ModuleVersion     = '1.5.0'
 GUID              = '0b242b1e-b061-49a0-914d-dc9daa4e4615'
 Author            = 'Panos Grigoriadis'
 #CompanyName       = ''
 #Copyright         = ''
 Description       = 'Function for running remote commands on Azure Windows VMs.'
-PowerShellVersion = '7.0'     # <-- this module uses the "ForEach -Parallel" so it needs PS 7+
+PowerShellVersion = '7.4'     # <-- this module uses the "ForEach -Parallel" so it needs PS 7+,
+                              #     and also the -ProgressAction common param which was introduced in PS 7.4
 #RequiredModules   = @()
 FunctionsToExport = 'Invoke-AzCommand'
 #CmdletsToExport   = @()
@@ -38,6 +39,10 @@ FileList          = 'readme.md',
                     'Private\Get-RemoteHelperFunction.ps1',
                     'Private\Get-EncryptionKey.ps1',
                     'Private\Import-FormatView.ps1',
+                    'Private\Test-AzureStorage.ps1',
+                    'Private\Test-ExpectedProperty.ps1',
+                    'Private\Receive-AzureOutput.ps1',
+                    'Private\Write-AzureOutput.ps1',
                     'Script\RemoteScript.ps1'
 PrivateData = @{
     PSData = @{
