@@ -28,10 +28,12 @@ Specifically it supports:
 (for parallel execution per VM since Azure is quite slow and each command takes about ~60 seconds)
 - **Impersonation**  
 (to _RunAs_ a different user so you can access network recources since the agent service runs with _System_ by default).
+- **Storage Container Option**  
+(optionally use Azure Storage Container as an intermediate store to bypass the limitation of 4KB on the output message)
 
 It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects extra properties like the Azure computername and username.
 
-In general I tried to simulate the functionality of `Invoke-Command` as best as I could, through the Azure run command.
+The general idea was to simulate the functionality of `Invoke-Command` as best as I could, through the Azure run command.
 
 ## Disclaimer
 
@@ -97,6 +99,12 @@ When the Execution timeout expires then the runspace job that runs on the remote
 This is the time needed to reach the remote host, to communicate with the Az VM Guest agent service and send the code, and finally to also run the user's script to completion and for the agent to send the results back to your computer. Which means the Delivery Timeout includes the Execution Timeout.  
 When the Delivery timeout expires then the `Invoke-AzVMRunCommand` that runs locally is stopped which means you don't get any output.
 
+## Storage Container settings
+The `Invoke-AzCommand` has an option to use an Azure Storage Container in order to bypass the default limitation of 4KB on the output message. This is done by uploading the output into a Storage Container and then getting it locally to process the results. There are some requirements of course for this functionality to work. The remote server needs to have the Azure modules installed and also needs a Managed Identity that has access to the Storage Container in order to upload the output. Then your local account (or the Azure account that runs the Invoke-AzCommand anyhow) must also have access to that container in order to download the results to your computer.  
+
+There is also second way to use this functionality. And this is to specify an individual storage container on each VM. This way if you have VMs in different regions (for ex. in US and in EU locations, on the same Azure subscription) then each of those VMs can send their results to their local Storage Container. This way we avoid any extra costs from sending traffic outside of the Azure region. The results will then be downloaded locally from each of those storage containers, in which case do note that this can incur some costs if you're running the Invoke-AzCommand from a computer that is outside of those Azure regions.
+
+For this 2nd option to work, you'll need to add the storage container to each VM manually, before running `Invoke-AzCommand`. This can be done easily with a `foreach` loop and the `Add-Member` command. Please see [**examples.md**](./examples.md) for the details on that.
 
 ## Official documentation from MS
 

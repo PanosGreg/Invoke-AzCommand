@@ -44,6 +44,10 @@ $job = Get-Job -Name AzCmd*
 $job.TargetVM
 # run the remote command as a background job. Also the job object has an extra property called TargetVM
 
+Invoke-AzCommand $VM {Get-Volume}
+# run remote command and receive a truncated output, due to the max length limitation of the Azure VM Guest Agent service
+# Since the output is not complete, you receive plain text instead of objects.
+
 $creds = Get-Credential
 $block = {
     $srv = 'Server2'
@@ -62,4 +66,30 @@ $block = {
 Invoke-AzCommand $VM $block -Credential $creds
 # run the remote command as a different user that has network access to a server in the domain
 # by default the SSM Agent runs under the SYSTEM account which does not have any network access.
+
+$StorAccnt = Get-AzStorageAccount   -Name '<azure_storage_account>' -ResourceGroupName '<res_group_name>'
+$StorContr = Get-AzStorageContainer -Name '<azure_storage_container>' -Context $StorAccnt.Context
+Import-Module Storage
+Invoke-AzCommand $VM {Get-Volume} -StorageContainer $StorContr
+# use an Azure Storage Container as an intermediate to temporarily save the output results
+# to bypass the max length limitation from the native Az VM Guest Agent service (which is just 4KB)
+# I'm also loading the Storage module locally in order to have the appropriate formatter for the Volume object from the remote command
+
+$AccntEU  = Get-AzStorageAccount -AccountName '<account_in_EU_location>' -ResourceGroupName '<res_group_in_EU_location>'
+$AccntUS  = Get-AzStorageAccount -AccountName '<account_in_US_location>' -ResourceGroupName '<res_group_in_US_location>'
+$ContrEU  = Get-AzStorageContainer -Name '<storage_container_name_in_EU>' -Context $AccntEU.Context
+$ContrUS  = Get-AzStorageContainer -Name '<storage_container_name_in_US>' -Context $AccntUS.Context
+$VM | foreach {
+    if     ($_.Location -eq 'eastus2')    {$StorageContainer = $ContrUS}
+    elseif ($_.Location -eq 'westeurope') {$StorageContainer = $ContrEU}
+    $_ | Add-Member -NotePropertyMembers @{StorageContainer=$StorageContainer} -Force
+}
+Import-Module Storage
+Invoke-AzCommand $VM {Get-Volume} -UseContainerPerVM
+# again use Storage Containers with the output, though now we are using the "UseContainerPerVM" switch.
+# But this time, we set a specific storage container on each VM based on its location
+# so that when the remote command runs, it will send the output to that container in order to minimize cost.
+# Because if we were to send everything to one single container, then any traffic that's sent outside of an Azure region
+# gets charged, whereas now we keep all traffic within the same locations/regions.
+# The property we add to each VM has a specific name ("StorageContainer") and must have a specific type ([AzureStorageContainer])
 ```
