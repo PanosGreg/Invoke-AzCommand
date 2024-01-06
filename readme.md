@@ -8,8 +8,8 @@ You'll need to have the Azure modules (_Az.Compute_ and _Az.Accounts_) and login
 
 ## Idea
 
-The native `Invoke-AzVMRunCommand` from Microsoft pretty much sucks.  
-The company that gave us **Invoke-Command** and **PowerShell Remoting** does not adhere to the same standards when it comes to remote execution in Azure, even through PowerShell nonetheless. I realized there's no alternative out there that does what I want to do. So I made `Invoke-AzCommand` to fix the gap.
+The native `Invoke-AzVMRunCommand` from Microsoft is lacking a lot of needed functionality.  
+The company that gave us **Invoke-Command** and **PowerShell Remoting** falls behind when it comes to remote execution in Azure, even through PowerShell nonetheless. I realized there's no alternative out there that does what I wanted to do. So I made `Invoke-AzCommand` to fix the gap.
 
 There should be a remote execution method on Azure VMs through PowerShell that's easy-to-use, simple, and supports objects, streams and multi-threading at the very least. Now there is.
 
@@ -29,15 +29,15 @@ Specifically it supports:
 - **Impersonation**  
 (to _RunAs_ a different user so you can access network recources since the agent service runs with _System_ by default).
 - **Storage Container Option**  
-(optionally use Azure Storage Container as an intermediate store to bypass the limitation of 4KB on the output message)
+(optionally use Azure Blob Storage as an intermediate store to bypass the limitation of 4KB on the output message)
 
-It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects extra properties like the Azure computername and username.
+It also compresses the output to support sizes a bit larger than 4KB (since that's the current limit from the Azure service), it shows the remote error records onto the local machine and finally enriches the objects with extra properties like the Azure computername and username. When the user gives credentials to run-as a different account on the remote VM(s), those credentials are encrypted.
 
 The general idea was to simulate the functionality of `Invoke-Command` as best as I could, through the Azure run command.
 
 ## Disclaimer
 
-I know that MS has recently introduced the `Get-AzVMRunCommand` and also the `Set-AzVMRunCommand`, but unfortunately these lack a lot of needed functionality as well. So it wasn't the answer to the problem after all.
+I know that MS has recently introduced the `Get-AzVMRunCommand` and also the `Set-AzVMRunCommand`, but unfortunately these are missing a lot of features as well. So it wasn't the answer to the problem after all.
 
 ## Installation
 
@@ -101,6 +101,7 @@ When the Delivery timeout expires then the `Invoke-AzVMRunCommand` that runs loc
 
 ## Storage Container settings
 The `Invoke-AzCommand` has an option to use an Azure Storage Container in order to bypass the default limitation of 4KB on the output message. This is done by uploading the output into a Storage Container and then getting it locally to process the results. There are some requirements of course for this functionality to work. The remote server needs to have the Azure modules installed and also needs a Managed Identity that has access to the Storage Container in order to upload the output. Then your local account (or the Azure account that runs the Invoke-AzCommand anyhow) must also have access to that container in order to download the results to your computer.  
+Once the results are downloaded from the Storage Container, then they are deleted, so no files are left behind in Azure Storage.  
 
 There is also second way to use this functionality. And this is to specify an individual storage container on each VM. This way if you have VMs in different regions (for ex. in US and in EU locations, on the same Azure subscription) then each of those VMs can send their results to their local Storage Container. This way we avoid any extra costs from sending traffic outside of the Azure region. The results will then be downloaded locally from each of those storage containers, in which case do note that this can incur some costs if you're running the Invoke-AzCommand from a computer that is outside of those Azure regions.
 

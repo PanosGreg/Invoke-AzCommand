@@ -44,10 +44,6 @@ $job = Get-Job -Name AzCmd*
 $job.TargetVM
 # run the remote command as a background job. Also the job object has an extra property called TargetVM
 
-Invoke-AzCommand $VM {Get-Volume}
-# run remote command and receive a truncated output, due to the max length limitation of the Azure VM Guest Agent service
-# Since the output is not complete, you receive plain text instead of objects.
-
 $creds = Get-Credential
 $block = {
     $srv = 'Server2'

@@ -5,12 +5,6 @@ New feature ideas for the Invoke-AzCommand
 
 Ideas as of: 07-Nov-2023
 
-0) - Write integration pester tests for the public function   --- DONE
-     Run all the functionality tests mentioned at the end of
-     the .Tests.ps1
-   
-   - Also run that in a Linux box as well
-
 1) -AsJob parameter    -- DONE
    (Look at the spinner module for this)
    
@@ -67,7 +61,7 @@ Ideas as of: 07-Nov-2023
    
    I need to thank Jordan Borean for his great work on this function.
    The actual source for this is here: https://gist.github.com/jborean93/3c148df03545023c671ddefb2d2b5ffc
-   His C# mastery is quite remarkable.
+   He's pretty good with C#.
 
 6a) If I add the credential parameter, then it makes sense to   --- DONE
     also implement encryption. Since we don't want the user/pass
@@ -196,9 +190,31 @@ Priorities
 
 Since there's so many things I can do to extend the functionality
 Here's a preliminary priority list.
-1) add ReferenceModule to load a local module remotely (since we have a 4MB limit on input, which is large enough)
+1) add ReferenceModule to load a local module remotely (since we have a 4MB limit on input, which is large enough)  
+   (this would be similar in concept to Add-Type -ReferencedAssemblies ...)
 2) Add logging through custom PS drive. This should be an external module. This is a substantial effort.
 3) Add copy functionality. This is an external module or function that will use the Invoke-AzCommand (dogfooding)
 4) Add data channel through REST API server. This is a substantial effort.
 5) Write encryption/decryption module and have option to use it.
    (this actually could be done with the ReferenceModule option, so user can do it on his own)
+
+
+Even more ideas
+----------------
+
+a) Profiling
+Profile the user's code during runtime, and save the trace in Azure Storage.
+Then when you collect the results, store the traces locally in the custom PS Drive,
+so the user can go check them out.
+
+Talk to Jakub, about the possibility to extend the profiler module.
+Track network and memory stats before and after each command. The idea is to send the tracing
+results into a log platform (ex. Prometheus+Grafana) and be able to see the resources used
+on the commands that were run in the past. Things like how many network calls were done,
+or how many bytes were sent/received, or how much disk space was used on commands,
+or how much memory was used, or which .NET classes are using how much memory.
+
+b) Logging
+Create a custom event provider on the target VMs, and log everything there upon each execution.
+So that when an engineer needs to check what happened, he can track it back through the Event Viewer.
+
