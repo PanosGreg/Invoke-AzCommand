@@ -50,6 +50,22 @@ $out | where {$_.psobject} | foreach {  # <-- I've added the Where {} to ignore 
         $Ctx = $FromVM.StorageContainer.Context
         Receive-AzureOutput -Blob $_.Blob -Container $_.Container -Context $Ctx -VM $FromVM
     }
+    elseif ($Types -contains 'Deserialized.System.IO.FileInfo' -or
+            $Types -contains 'Deserialized.System.IO.DirectoryInfo') {
+        # there is an incompatibility issue between PS v5 and PS v7 on the output format of System.IO.FileInfo|DirectoryInfo
+        # see here: https://github.com/PowerShell/PowerShell/issues/11400
+        #           https://github.com/PowerShell/PowerShell/issues/10759
+        $_ | Add-Member -Force -NotePropertyName NameString          -NotePropertyValue $_.Name
+        $_ | Add-Member -Force -NotePropertyName LastWriteTimeString -NotePropertyValue $_.LastWriteTime.ToString()
+        $_ | Add-Member -Force -NotePropertyName ModeWithoutHardLink -NotePropertyValue $_.Mode
+
+        if ($Types -contains 'Deserialized.System.IO.FileInfo') {
+            $_ | Add-Member -Force -NotePropertyName LengthString -NotePropertyValue $_.Length.ToString()
+        }
+
+        # and also make sure to add our own custom properties as well
+        $_ | Add-Member -NotePropertyMembers $AzProps -Force -PassThru
+    }
     elseif ($Types -contains "$DSMA.PSCustomObject") {                   # <-- add extra properties but don't show them by default
         $prop = [string[]]$_.psobject.Properties.Name
         $pset = [PSPropertySet]::new('DefaultDisplayPropertySet',$prop)
