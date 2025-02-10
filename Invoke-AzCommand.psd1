@@ -4,7 +4,7 @@
 
 @{
 RootModule        = 'Invoke-AzCommand.psm1'
-ModuleVersion     = '1.5.0'
+ModuleVersion     = '1.5.1'
 GUID              = '0b242b1e-b061-49a0-914d-dc9daa4e4615'
 Author            = 'Panos Grigoriadis'
 #CompanyName       = ''
