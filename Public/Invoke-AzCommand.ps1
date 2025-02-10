@@ -20,11 +20,11 @@ function Invoke-AzCommand {
 param (
     [Parameter(Mandatory,Position=0)]
     [ValidateScript({
-        $Chk = $_ | foreach {$_.GetType().Name -match 'PSVirtualMachine(List|ListStatus)?$'}
+        $Chk = $_ | foreach {$_.GetType().Name -match 'PSVirtualMachine(List|ListStatus|InstanceView)?$'}
         $Chk -notcontains $false},
         ErrorMessage = 'Please provide a valid Azure VM object type'
     )]
-    $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus]
+    $VM,  # <-- must be [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] or [...PSVirtualMachineList] or [...PSVirtualMachineListStatus] or [...PSVirtualMachineInstanceView]
 
     [Parameter(Mandatory,Position=1,ParameterSetName = 'ScriptBlock')]
     [Parameter(Mandatory,Position=1,ParameterSetName = 'Block_Args')]
@@ -92,10 +92,6 @@ param (
 )
 $ParamSetName = $PSCmdlet.ParameterSetName
 
-# make sure all VMs are on the same Azure subscription
-$SameSub = Test-AzureSubscription $VM
-if (-not $SameSub) {Write-Warning 'Please make sure all VMs are on the same subscription';return}
-
 # make sure the StorageContainer property exists
 if ($ParamSetName -like '*ContainerPerVM*') {
     $Type = 'Microsoft.WindowsAzure.Commands.Common.Storage.ResourceModel.AzureStorageContainer'
@@ -106,7 +102,29 @@ if ($ParamSetName -like '*ContainerPerVM*') {
         return
     }
 }
+## NOTE: this is not a good approach, I need to refactor that piece and find an alternative solution
+##       Actually, simplify the code. Dont let the user have individual storage containers, just use one.
 
+# if input was VM(s) of PSVirtualMachineInstanceView type, then refresh the variable
+if (($VM | Get-Member)[0].TypeName -like '*PSVirtualMachineInstanceView') {
+    Write-Verbose 'Input was PSVirtualMachineInstanceView type, refreshing the VM(s) without the status property.'
+    if ($ParamSetName -like '*ContainerPerVM*') {
+        $VM = $VM | foreach {
+            $StCtr = $_.StorageContainer
+            Get-AzVM -Name $_.Name -ResourceGroupName $_.ResourceGroupName -Verbose:$false |
+                Add-Member -NotePropertyMembers @{StorageContainer=$StCtr} -PassThru -Force
+        }
+    }
+    else {
+        $VM = $VM | foreach {Get-AzVM -Name $_.Name -ResourceGroupName $_.ResourceGroupName -Verbose:$false}
+    }
+}
+
+# make sure all VMs are on the same Azure subscription
+$SameSub = Test-AzureSubscription $VM
+if (-not $SameSub) {Write-Warning 'Please make sure all VMs are on the same subscription';return}
+
+# run the command as a background job
 if ($AsJob) {
     # Remove the -AsJob parameter, leave everything else as-is
     [void]$PSBoundParameters.Remove('AsJob')
