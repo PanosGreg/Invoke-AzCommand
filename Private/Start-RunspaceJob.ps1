@@ -15,6 +15,7 @@ param (
 
 . ([scriptblock]::Create('using namespace System.Management.Automation'))  # PSDataCollection,PowerShell,Runspaces.*
 $State = [Runspaces.InitialSessionState]::CreateDefault()
+$State.ExecutionPolicy = [Microsoft.PowerShell.ExecutionPolicy]::Unrestricted
 
 # add the required context to run as a different user
 if ($RunAs) {
